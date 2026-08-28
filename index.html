@@ -7,7 +7,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
-  canvas { display: block; }
+  canvas { display: block; touch-action: none; }
   #hud {
     position: absolute; top: 16px; left: 16px;
     background: rgba(10, 14, 24, 0.72);
@@ -19,40 +19,83 @@
     min-width: 240px;
     user-select: none;
   }
-  #hud h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; margin-bottom: 10px; color: #ffd27a; }
+  #hud h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; color: #ffd27a; }
+  #hudHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  #hudToggle {
+    background: rgba(255, 210, 122, 0.1); color: #ffd27a;
+    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
+    width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  #hudToggle:hover { background: rgba(255, 210, 122, 0.25); }
+  #hudToggle .chev { transition: transform 0.18s ease; }
+  #hud.collapsed #hudToggle .chev { transform: rotate(180deg); }
+  #hud.collapsed { min-width: 0; padding-bottom: 10px; }
+  #hud.collapsed #hudHeader { margin-bottom: 0; }
+  #hud.collapsed #hudBody { display: none; }
   #hud label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 7px 0; color: #b9c6e0; cursor: pointer; }
   #hud input[type="range"] { flex: 1; accent-color: #ffd27a; height: 4px; }
   #hud input[type="checkbox"] { accent-color: #ffd27a; }
-  #hud button {
+  #observer, #reset {
     margin-top: 8px; width: 100%; padding: 6px 0; font-size: 12px;
     background: rgba(255, 210, 122, 0.12); color: #ffd27a;
     border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
     cursor: pointer; transition: background 0.15s;
   }
-  #hud button:hover { background: rgba(255, 210, 122, 0.25); }
+  #observer:hover, #reset:hover { background: rgba(255, 210, 122, 0.25); }
+  #observer.active { background: rgba(255, 210, 122, 0.4); border-color: #ffd27a; }
   #hud .stat { font-size: 11px; color: #7f8db0; margin-top: 8px; }
   #hud .stat span { color: #ffd27a; }
+  #hud { touch-action: manipulation; }
+  @media (max-width: 640px) {
+    #hud { top: 8px; left: 8px; right: auto; max-width: calc(100vw - 16px); }
+    #hudToggle { width: 36px; height: 36px; }
+    #hud h1 { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
 
 <div id="hud">
-  <h1>EARTH &bull; SUN SYSTEM</h1>
-  <label>Orbit speed
-    <input type="range" id="speed" min="0" max="300" value="30" step="1" />
-  </label>
-  <label>Rotation speed
-    <input type="range" id="rotSpeed" min="0" max="100" value="100" step="1" />
-  </label>
-  <label><input type="checkbox" id="pause" /> Pause</label>
-  <label><input type="checkbox" id="clouds" checked /> Clouds layer</label>
-  <label><input type="checkbox" id="orbitPath" checked /> Orbit path</label>
-  <label><input type="checkbox" id="axis" /> Show Earth's tilt axis</label>
-  <label><input type="checkbox" id="polaris" checked /> Polaris hint</label>
-  <button id="reset">Reset camera</button>
-  <div class="stat">Orbital angle: <span id="angle">0.0&deg;</span></div>
-  <div class="stat">Orbit: <span id="orbitRate"></span> &nbsp; Rotation: <span id="spinRate"></span></div>
-  <div class="stat">Render rate: <span id="fps">-</span> fps</div>
+  <div id="hudHeader">
+    <h1 id="hudTitle">EARTH &bull; SUN SYSTEM</h1>
+    <button id="hudToggle" aria-label="Toggle panel" title="Show/hide controls">
+      <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+        <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <div id="hudBody">
+    <label><span id="lblSpeed">Orbit speed</span>
+      <input type="range" id="speed" min="0" max="300" value="5" step="1" />
+    </label>
+    <label><span id="lblRotSpeed">Rotation speed (% real)</span>
+      <input type="range" id="rotSpeed" min="0" max="100" value="100" step="1" />
+    </label>
+    <label><span id="lblLat">Observer latitude (observer view)</span>
+      <input type="range" id="lat" min="0" max="90" value="45" step="1" />
+    </label>
+    <label><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
+    <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
+    <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
+    <label><input type="checkbox" id="orbitPath" checked /> <span id="lblOrbitPath">Orbit path</span></label>
+    <label><input type="checkbox" id="axis" /> <span id="lblAxis">Show Earth's tilt axis</span></label>
+    <label><input type="checkbox" id="polaris" checked /> <span id="lblPolaris">Polaris</span></label>
+    <label><input type="checkbox" id="polarisLine" /> <span id="lblPolarisLine">Polaris hint line</span></label>
+    <label><input type="checkbox" id="dipper" checked /> <span id="lblDipper">Big Dipper</span></label>
+    <label><input type="checkbox" id="dipperLine" /> <span id="lblDipperLine">Dipper pointer line</span></label>
+    <label><input type="checkbox" id="rays" /> <span id="lblRays">Sun light rays</span></label>
+    <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
+    <label><input type="checkbox" id="starfield" /> <span id="lblStarfield">Background stars</span></label>
+    <button id="observer"><span id="lblObserver">Observer view</span></button>
+    <button id="reset"><span id="lblReset">Reset camera</span></button>
+    <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
+    <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
+    <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
+    <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
+  </div>
 </div>
 
 <script type="importmap">
@@ -68,11 +111,22 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 2000);
-camera.position.set(0, 9, 26);
+// ---- True scale (Earth radius = 1 unit) ----
+const EARTH_RADIUS = 1.0;            // 6,371 km
+const SUN_RADIUS = 109.2;            // 695,700 km  -> 109.2x Earth
+const ORBIT_RADIUS = 23481.2;        // 1 AU = 149,597,870 km = 23,481x Earth radius
+const SKY_RADIUS = 850000;           // decorative sky objects live beyond the orbit
+                                     // (10x further than needed for the markers; keeps
+                                     // stellar parallax below ~1.5deg so Polaris sits
+                                     // at its true altitude from any observer)
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power' });
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 2000000);
+// Default view: the Earth up close with the Sun's disc just beside its limb
+// (close distance + small lateral offset).
+camera.position.set(ORBIT_RADIUS + 11.5, 0, 1.6);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power', logarithmicDepthBuffer: true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
@@ -80,14 +134,15 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
-controls.minDistance = 3;
-controls.maxDistance = 80;
+controls.minDistance = 1.5;
+controls.maxDistance = 120000;
+controls.target.set(ORBIT_RADIUS, 0, 0);
 
 // ---- Sun ----
 const sunGroup = new THREE.Group();
 scene.add(sunGroup);
 
-const sunGeo = new THREE.SphereGeometry(2.2, 48, 48);
+const sunGeo = new THREE.SphereGeometry(SUN_RADIUS, 48, 48);
 const sunMat = new THREE.MeshBasicMaterial({ color: 0xffcc55 });
 const sun = new THREE.Mesh(sunGeo, sunMat);
 sunGroup.add(sun);
@@ -112,12 +167,12 @@ const glow = new THREE.Sprite(new THREE.SpriteMaterial({
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 }));
-glow.scale.set(16, 16, 1);
+glow.scale.set(SUN_RADIUS * 7.3, SUN_RADIUS * 7.3, 1);
 sunGroup.add(glow);
 
 // Faint corona ring for flair
 const corona = new THREE.Mesh(
-  new THREE.RingGeometry(2.4, 2.7, 64),
+  new THREE.RingGeometry(SUN_RADIUS * 1.08, SUN_RADIUS * 1.20, 64),
   new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
 );
 corona.rotation.x = Math.PI / 2;
@@ -129,34 +184,47 @@ sunLight.position.set(0, 0, 0);
 scene.add(sunLight);
 scene.add(new THREE.AmbientLight(0x223344, 0.5));
 
-// ---- Stars ----
-const starCount = 6000;
-const starPos = new Float32Array(starCount * 3);
-for (let i = 0; i < starCount * 3; i += 3) {
-  const r = 500 + Math.random() * 900;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  starPos[i]     = r * Math.sin(phi) * Math.cos(theta);
-  starPos[i + 1] = r * Math.sin(phi) * Math.sin(theta);
-  starPos[i + 2] = r * Math.cos(phi);
+// ---- Stars (realistic magnitude distribution: a few bright, many faint) ----
+const STAR_BINS = [
+  { count: 40,   size: 3.2, color: 0xfff0d6 },   // mag < 1
+  { count: 260,  size: 2.4, color: 0xeef4ff },   // mag 1-2.5
+  { count: 1300, size: 1.7, color: 0xd5dff5 },   // mag 2.5-4.5
+  { count: 4400, size: 1.1, color: 0xaebad4 },   // mag > 4.5
+];
+const starfieldGroup = new THREE.Group();
+starfieldGroup.visible = false;   // decorative backdrop, off by default
+scene.add(starfieldGroup);
+for (const bin of STAR_BINS) {
+  const pos = new Float32Array(bin.count * 3);
+  for (let i = 0; i < bin.count * 3; i += 3) {
+    const r = SKY_RADIUS * 0.7 + Math.random() * SKY_RADIUS * 0.7;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    pos[i]     = r * Math.sin(phi) * Math.cos(theta);
+    pos[i + 1] = r * Math.sin(phi) * Math.sin(theta);
+    pos[i + 2] = r * Math.cos(phi);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  starfieldGroup.add(new THREE.Points(geo, new THREE.PointsMaterial({
+    color: bin.color,
+    size: bin.size,
+    sizeAttenuation: false,
+  })));
 }
-const starGeo = new THREE.BufferGeometry();
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, sizeAttenuation: false }));
-scene.add(stars);
 
 // ---- Earth ----
-const ORBIT_RADIUS = 8;
 const EARTH_TILT = 23.44 * Math.PI / 180;
 
 // Earth's spin axis is fixed in space (like the real one), pointing toward Polaris:
 // tilted 23.44° from the orbit normal (+Y), leaning toward +X.
 const POLARIS_DIR = new THREE.Vector3(Math.sin(EARTH_TILT), Math.cos(EARTH_TILT), 0);
-const POLARIS_DIST = 110;                 // far away
+const POLARIS_DIST = SKY_RADIUS;         // far away, beyond the orbit
 const POLARIS_POS = POLARIS_DIR.clone().multiplyScalar(POLARIS_DIST);
 
 const earthPivot = new THREE.Group();     // positioned along the orbit each frame
 earthPivot.rotation.z = -EARTH_TILT;      // fixed axial tilt -> spin axis = POLARIS_DIR
+earthPivot.position.set(ORBIT_RADIUS, 0, 0);   // start at day 1
 scene.add(earthPivot);
 
 const loader = new THREE.TextureLoader();
@@ -169,8 +237,13 @@ const earthMat = new THREE.MeshPhongMaterial({
   shininess: 8,
   emissive: new THREE.Color(0x0a1420),
 });
-const earth = new THREE.Mesh(new THREE.SphereGeometry(1.15, 64, 64), earthMat);
+const earth = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS, 64, 64), earthMat);
 earthPivot.add(earth);
+
+// Observer anchor: rides the spinning Earth at any latitude (0 = equator,
+// 90 = north pole). Position set per-frame in updateObserverView().
+const observer = new THREE.Group();
+earth.add(observer);
 
 // Clouds layer (rotates slightly faster)
 const cloudMat = new THREE.MeshPhongMaterial({
@@ -179,16 +252,29 @@ const cloudMat = new THREE.MeshPhongMaterial({
   opacity: 0.6,
   depthWrite: false,
 });
-const clouds = new THREE.Mesh(new THREE.SphereGeometry(1.17, 64, 64), cloudMat);
+const clouds = new THREE.Mesh(new THREE.SphereGeometry(EARTH_RADIUS * 1.03, 64, 64), cloudMat);
 earthPivot.add(clouds);
+
+// Equator (great circle perpendicular to the spin axis, drawn over the surface)
+const equator = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints(
+    Array.from({ length: 96 }, (_, i) => {
+      const a = (i / 96) * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a) * (EARTH_RADIUS + 0.01), 0, Math.sin(a) * (EARTH_RADIUS + 0.01));
+    })
+  ),
+  new THREE.LineBasicMaterial({ color: 0x59d9a8, transparent: true, opacity: 0.85, depthWrite: false })
+);
+equator.renderOrder = 4;
+earth.add(equator);
 
 // Tilt axis indicator (along the spin axis, through the planet's center)
 const axisMat = new THREE.MeshBasicMaterial({ color: 0x7fd7ff, transparent: true, opacity: 0.7 });
-const axisLine = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 5.8, 6), axisMat);
+const axisLine = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, EARTH_RADIUS * 5, 6), axisMat);
 const axisTip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), axisMat);
-axisTip.position.y = 3.0;
+axisTip.position.y = EARTH_RADIUS * 2.5;
 const axisTip2 = axisTip.clone();
-axisTip2.position.y = -3.0;
+axisTip2.position.y = -EARTH_RADIUS * 2.5;
 const axisGroup = new THREE.Group();
 axisGroup.add(axisLine, axisTip, axisTip2);
 axisGroup.visible = false;
@@ -198,28 +284,59 @@ earthPivot.add(axisGroup);
 const polarisGroup = new THREE.Group();
 scene.add(polarisGroup);
 
-// Bright star marker
+// Star glow texture: a bright compact core + soft halo, so stars read as
+// crisp points with a glow instead of a barely-visible gradient wash.
+function makeStarGlow(r, g, b) {
+  const size = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+  grad.addColorStop(0, `rgba(${r},${g},${b},1)`);
+  grad.addColorStop(0.05, `rgba(${r},${g},${b},1)`);
+  grad.addColorStop(0.18, `rgba(${r},${g},${b},0.55)`);
+  grad.addColorStop(0.45, `rgba(${r},${g},${b},0.18)`);
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+// Polaris: yellow supergiant, ~37.5 solar radii, mag 1.98
 const polarisSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-  map: makeGlowTexture('rgba(224, 234, 255, 1)', 'rgba(150, 180, 255, 0.6)', 'rgba(80, 120, 255, 0)'),
+  map: makeStarGlow(255, 232, 200),
   blending: THREE.AdditiveBlending,
+  transparent: true,
   depthWrite: false,
+  opacity: Math.max(0.3, 0.8 * Math.pow(2.512, 1.77 - 1.98)),   // flux by apparent magnitude
 }));
 polarisSprite.position.copy(POLARIS_POS);
-polarisSprite.scale.set(3.4, 3.4, 1);
+polarisSprite.scale.setScalar(37.5 * 700);
 polarisGroup.add(polarisSprite);
 
 // "Polaris" label
-function makeLabelTexture(text) {
+function makeLabelTexture(text, sub = null) {
+  const two = sub !== null;
   const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
+  c.width = 512; c.height = two ? 192 : 128;
   const ctx = c.getContext('2d');
-  ctx.font = 'bold 72px -apple-system, "Segoe UI", Roboto, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(150, 190, 255, 0.9)';
   ctx.shadowBlur = 18;
+  ctx.font = 'bold 72px -apple-system, "Segoe UI", Roboto, sans-serif';
   ctx.fillStyle = '#d6e6ff';
-  ctx.fillText(text, 256, 64);
+  ctx.fillText(text, 256, two ? 80 : 64);
+  if (two) {
+    let subSize = 40;
+    ctx.font = 'bold ' + subSize + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+    if (ctx.measureText(sub).width > 470) {
+      subSize = 32;
+      ctx.font = 'bold ' + subSize + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+    }
+    ctx.fillStyle = '#9fb4d8';
+    ctx.fillText(sub, 256, 148);
+  }
   return new THREE.CanvasTexture(c);
 }
 const polarisLabel = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -227,33 +344,245 @@ const polarisLabel = new THREE.Sprite(new THREE.SpriteMaterial({
   transparent: true,
   depthWrite: false,
 }));
-polarisLabel.position.copy(POLARIS_POS).addScaledVector(POLARIS_DIR, -3.4);
-polarisLabel.scale.set(7, 1.75, 1);
+polarisLabel.position.copy(POLARIS_POS).addScaledVector(POLARIS_DIR, -26250);
+polarisLabel.scale.set(54090, 13520, 1);
 polarisGroup.add(polarisLabel);
 
 // Hint line: from Earth's north pole toward Polaris (dashed, updated each frame)
 const hintGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
 const hintLine = new THREE.Line(hintGeo, new THREE.LineDashedMaterial({
   color: 0x9fd8ff,
-  dashSize: 0.7,
-  gapSize: 0.45,
+  dashSize: 60,
+  gapSize: 40,
   transparent: true,
   opacity: 0.5,
 }));
 hintLine.computeLineDistances();   // precompute dashed-line distances (done once)
 scene.add(hintLine);
 
+// ---- Big Dipper (Ursa Major) ----
+// Real sky geometry: each star's angular distance (theta) and position angle
+// (PA) from the celestial pole (Polaris). The pointer stars Dubhe & Merak
+// share the same PA, so the Merak -> Dubhe line extended lands on Polaris.
+const BD_RADIUS = SKY_RADIUS;
+// name, theta(deg), PA(deg), radius (solar radii), apparent magnitude, spectral tint
+// name, theta(deg), PA(deg), radius (solar radii), apparent magnitude, spectral tint (r,g,b)
+const BD_STARS = [
+  ['Dubhe',  28.6, 51.4, 15.0, 1.79, 255, 210, 161],
+  ['Merak',  34.0, 51.6,  3.0, 2.37, 232, 239, 255],
+  ['Phecda', 36.9, 38.9,  3.1, 2.44, 232, 239, 255],
+  ['Megrez', 33.6, 33.4,  1.4, 3.31, 232, 239, 255],
+  ['Alioth', 34.7, 23.8,  4.1, 1.77, 232, 239, 255],
+  ['Mizar',  35.7, 16.7,  3.7, 2.27, 232, 239, 255],
+  ['Alkaid', 41.4, 10.8,  6.1, 1.86, 202, 216, 255],
+];
+const BD_STAR_SIZE = 700;         // world units per solar radius
+const BD_STAR_MIN = 3000;         // minimum size so all 7 stars read clearly (~0.2 deg)
+const BD_BRIGHTEST_MAG = 1.77;    // Alioth — flux reference
+const BD_EDGES = [[0,1],[1,2],[2,3],[3,0],[3,4],[4,5],[5,6]];
+
+// Orthonormal sky basis around the celestial pole
+const skyY = POLARIS_DIR.clone();
+const skyZ = new THREE.Vector3().crossVectors(POLARIS_DIR, new THREE.Vector3(0, 1, 0)).normalize();
+const skyX = new THREE.Vector3().crossVectors(skyY, skyZ);
+
+function skyDir(thetaDeg, paDeg) {
+  const th = THREE.MathUtils.degToRad(thetaDeg);
+  const pa = THREE.MathUtils.degToRad(paDeg);
+  return new THREE.Vector3()
+    .addScaledVector(skyY, Math.cos(th))
+    .addScaledVector(skyX, Math.sin(th) * Math.cos(pa))
+    .addScaledVector(skyZ, Math.sin(th) * Math.sin(pa));
+}
+
+const bdGroup = new THREE.Group();
+scene.add(bdGroup);
+
+const bdPos = BD_STARS.map((s) => skyDir(s[1], s[2]).multiplyScalar(BD_RADIUS));
+
+// Stick-figure connecting lines (bowl + handle)
+const bdPts = [];
+for (const [i, j] of BD_EDGES) { bdPts.push(bdPos[i], bdPos[j]); }
+const bdLine = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints(bdPts),
+  new THREE.LineBasicMaterial({ color: 0x9db4d8, transparent: true, opacity: 0.5 })
+);
+bdGroup.add(bdLine);
+
+// Star markers: size proportional to each star's real radius (solar units)
+// with a minimum apparent size, brightness from its apparent magnitude,
+// tinted by spectral class.
+for (let i = 0; i < BD_STARS.length; i++) {
+  const [, , , radiusSun, mag, r, g, b] = BD_STARS[i];
+  const star = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeStarGlow(r, g, b),
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity: Math.max(0.28, 0.8 * Math.pow(2.512, BD_BRIGHTEST_MAG - mag)),
+  }));
+  star.position.copy(bdPos[i]);
+  star.scale.setScalar(Math.max(radiusSun * BD_STAR_SIZE, BD_STAR_MIN));
+  bdGroup.add(star);
+}
+
+// Alcor (辅 Fǔ) — Mizar's faint companion at its real position. In the
+// Taoist nine-star Dipper (北斗九星) this IS 洞明 Dòngmíng, the 8th star.
+const alcor = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeStarGlow(232, 239, 255),
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  depthWrite: false,
+  opacity: 0.8 * Math.pow(2.512, BD_BRIGHTEST_MAG - 3.99),
+}));
+alcor.position.copy(skyDir(35.7, 15.7).multiplyScalar(BD_RADIUS));
+alcor.scale.setScalar(2200);
+bdGroup.add(alcor);
+
+const alcorLabel = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeLabelTexture('\u6D1E\u660E', 'DONGMING \u00B7 Alcor (\u8F85)'),
+  transparent: true,
+  depthWrite: false,
+}));
+alcorLabel.position.copy(alcor.position).addScaledVector(skyY, 2800);
+alcorLabel.scale.set(7000, 2625, 1);
+bdGroup.add(alcorLabel);
+
+// 隐元 Yǐnyuán (弼 Bì), the 9th star: no real-sky identification exists --
+// placed below 摇光 (Alkaid), just barely toward 开阳 (Mizar) -- clearly
+// closer to 摇光 than to 开阳, offset inside the arc.
+const BD_EXTRA = [
+  ['\u9690\u5143', 'Yinyuan', 42.5, 14.5, 1.0, 7.0, 230, 235, 255],   // 隐元
+];
+for (let i = 0; i < BD_EXTRA.length; i++) {
+  const [cn, en, , , , mag, r, g, b] = BD_EXTRA[i];
+  const pos = skyDir(BD_EXTRA[i][2], BD_EXTRA[i][3]).multiplyScalar(BD_RADIUS);
+  const star = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeStarGlow(r, g, b),
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity: Math.max(0.1, 0.8 * Math.pow(2.512, BD_BRIGHTEST_MAG - mag)),   // hidden: barely there
+  }));
+  star.position.copy(pos);
+  star.scale.setScalar(1800);
+  bdGroup.add(star);
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeLabelTexture(cn, en + ' (traditional)'),
+    transparent: true,
+    depthWrite: false,
+  }));
+  label.position.copy(pos).addScaledVector(skyY, 2800);
+  label.scale.set(7000, 2625, 1);
+  bdGroup.add(label);
+}
+
+// Pointer hint: the Merak -> Dubhe line extended to Polaris (static, dashed)
+const pointerHint = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([bdPos[1], POLARIS_POS]),
+  new THREE.LineDashedMaterial({
+    color: 0x9fd8ff,
+    dashSize: 60,
+    gapSize: 40,
+    transparent: true,
+    opacity: 0.4,
+  })
+);
+pointerHint.computeLineDistances();
+bdGroup.add(pointerHint);
+
+// Label under the bowl
+const bdLabel = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeLabelTexture('BIG DIPPER', 'URSA MAJOR'),
+  transparent: true,
+  depthWrite: false,
+}));
+bdLabel.position.copy(skyDir(42, 40).multiplyScalar(BD_RADIUS));
+bdLabel.scale.set(80530, 30420, 1);
+bdGroup.add(bdLabel);
+
 // Orbit path
 const orbitLine = new THREE.Line(
   new THREE.BufferGeometry().setFromPoints(
-    Array.from({ length: 128 }, (_, i) => {
-      const a = (i / 128) * Math.PI * 2;
+    Array.from({ length: 256 }, (_, i) => {
+      const a = (i / 256) * Math.PI * 2;
       return new THREE.Vector3(Math.cos(a) * ORBIT_RADIUS, 0, Math.sin(a) * ORBIT_RADIUS);
     })
   ),
   new THREE.LineBasicMaterial({ color: 0x3a5f9e, transparent: true, opacity: 0.45 })
 );
 scene.add(orbitLine);
+
+// ---- Sun light rays ----
+// Sunlight reaching Earth is essentially parallel (the Sun subtends only
+// 0.53°), so this is a cylinder of parallel rays around the Sun-Earth axis.
+// Rays emerge from the Sun's near surface; the ones that hit stop exactly at
+// the day-side surface, the tangent rays graze the terminator, and the rest
+// sweep past the night side. Being a full cylinder, rays are visible from
+// any camera angle.
+const RAY_OFFSETS = [0, 0.5, 1.0, 1.5, 2.5, 4, 6, 9, 13, 18, 24.5, 32.5, 42, 53.5, 67, 82.5, 99.5];
+const RAY_AZIMUTHS = [0, 60, 120, 180, 240, 300].map((d) => (d * Math.PI) / 180);
+const RAY_HIT = RAY_OFFSETS.filter((o) => o <= EARTH_RADIUS);   // touches the surface
+const RAY_MISS = RAY_OFFSETS.filter((o) => o > EARTH_RADIUS);   // passes by
+
+function makeRays(offsets, color, opacity) {
+  const n = offsets.reduce((acc, o) => acc + (o === 0 ? 1 : RAY_AZIMUTHS.length), 0) * 2;
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  const lines = new THREE.LineSegments(geom, new THREE.LineBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    depthWrite: false,
+  }));
+  lines.renderOrder = 5;
+  scene.add(lines);
+  return lines;
+}
+const hitRays = makeRays(RAY_HIT, 0xffdf9e, 0.6);
+const missRays = makeRays(RAY_MISS, 0xffc96b, 0.3);
+const _rayDir = new THREE.Vector3();
+
+function writeRay(attr, i, o, az, isHit) {
+  // lateral offset o at azimuth az around the Sun-Earth axis
+  // (e1 = vertical, e2 = cross(d, e1); d is horizontal so e1 = (0,1,0))
+  const ca = Math.cos(az), sa = Math.sin(az);
+  const lx = o * sa * (-_rayDir.z);
+  const ly = o * ca;
+  const lz = o * sa * _rayDir.x;
+  // Start on the Sun's near surface (nudged out so it doesn't z-fight)
+  const sunReach = Math.sqrt(SUN_RADIUS * SUN_RADIUS - o * o) + 0.4;
+  attr.setXYZ(i++, _rayDir.x * sunReach + lx, ly, _rayDir.z * sunReach + lz);
+  // End at the day-side surface, or sweep past the night side
+  if (isHit) {
+    const depth = Math.sqrt(EARTH_RADIUS * EARTH_RADIUS - o * o) + 0.03;
+    attr.setXYZ(i++,
+      earthPivot.position.x + _rayDir.x * depth + lx,
+      earthPivot.position.y + ly,
+      earthPivot.position.z + _rayDir.z * depth + lz);
+  } else {
+    attr.setXYZ(i++,
+      earthPivot.position.x + _rayDir.x * 6 + lx,
+      earthPivot.position.y + ly,
+      earthPivot.position.z + _rayDir.z * 6 + lz);
+  }
+  return i;
+}
+
+function updateRays(lines, offsets, isHit) {
+  const attr = lines.geometry.attributes.position;
+  let i = 0;
+  for (const o of offsets) {
+    if (o === 0) {
+      i = writeRay(attr, i, 0, 0, isHit);
+      continue;
+    }
+    for (const az of RAY_AZIMUTHS) {
+      i = writeRay(attr, i, o, az, isHit);
+    }
+  }
+  attr.needsUpdate = true;
+}
 
 // ---- State & UI ----
 let paused = false;
@@ -262,20 +591,148 @@ let angle = 0;
 
 // Nonlinear (quadratic-ish) mappings: the low end of each slider gets
 // fine-grained steps, so slow-motion Earth rotation is tunable.
-// Orbit speed: slider 0-300, default 30 -> 15 deg/s (squared curve beyond).
+// Orbit speed: slider 0-300, default 5 -> ~0.29 deg/s (one orbit ~21 min).
+// The rotation is locked to the real 365.25:1 ratio, so a slower orbit is
+// what makes the daily spin watchable on load.
 function orbitDegPerSec() {
   return 15 * Math.pow(Number($('speed').value) / 30, 2.2);
 }
-// Rotation speed: slider 0-100, default 100 -> 2.2 rad/s (21 rev/min).
+// Rotation speed: % of the REAL rotation rate. The real Earth spins 365.25
+// times per orbit, so at 100% the spin rate is locked to that ratio.
+// Slider 0-100, default 100 -> exactly 365.25 rotations per orbit.
 function spinRadPerSec() {
-  return 2.2 * Math.pow(Number($('rotSpeed').value) / 100, 2);
+  const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
+  return orbitDegPerSec() * (Math.PI / 180) * 365.25 * realRatio;
 }
 
 const $ = (id) => document.getElementById(id);
 
+// Reset interactive state at startup so browser form-state restoration can't
+// re-apply stale toggles on reload (e.g. 'Annual view' re-checking itself and
+// auto-entering observer mode).
+$('annual').checked = false;
+$('pause').checked = false;
+$('clouds').checked = true;
+$('orbitPath').checked = true;
+$('axis').checked = false;
+$('polaris').checked = true;
+$('polarisLine').checked = false;
+$('dipper').checked = true;
+$('dipperLine').checked = false;
+$('rays').checked = false;
+$('equator').checked = true;
+$('starfield').checked = false;
+$('speed').value = 5;
+$('rotSpeed').value = 100;
+$('lat').value = 45;
+
+// ---- Internationalization ----
+// Follows the user's device language; falls back to English.
+const I18N = {
+  en: {
+    title: 'EARTH \u2022 SUN SYSTEM',
+    toggleHint: 'Show/hide controls',
+    orbitSpeed: 'Orbit speed',
+    rotSpeed: 'Rotation speed (% real)',
+    obsLat: 'Observer latitude (observer view)',
+    annual: 'Annual view (fixed local time)',
+    pause: 'Pause',
+    clouds: 'Clouds layer',
+    orbitPath: 'Orbit path',
+    axis: 'Show Earth\u2019s tilt axis',
+    polaris: 'Polaris',
+    polarisLine: 'Polaris hint line',
+    dipper: 'Big Dipper',
+    dipperLine: 'Dipper pointer line',
+    rays: 'Sun light rays',
+    equator: 'Equator',
+    starfield: 'Background stars',
+    observer: 'Observer view',
+    reset: 'Reset camera',
+    lblAngle: 'Orbital angle:',
+    lblDay: 'Day of year:',
+    lblSeason: { summer: 'NH Summer', winter: 'NH Winter', equinox: 'NH Equinox' },
+    lblOrbit: 'Orbit:',
+    lblRotation: 'Rotation:',
+    spinRate: '{rev} rev/min \u00B7 {n}\u00D7 per orbit',
+    lblFps: 'Render rate:',
+  },
+  zh: {
+    title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
+    toggleHint: '\u663E\u793A/\u9690\u85CF\u9762\u677F',
+    orbitSpeed: '\u516C\u8F6C\u901F\u5EA6',
+    rotSpeed: '\u81EA\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
+    obsLat: '\u89C2\u6D4B\u7EAC\u5EA6\uFF08\u89C2\u6D4B\u89C6\u89D2\uFF09',
+    annual: '\u5468\u5E74\u89C6\u89D2\uFF08\u56FA\u5B9A\u5F53\u5730\u65F6\u95F4\uFF09',
+    pause: '\u6682\u505C',
+    clouds: '\u4E91\u5C42',
+    orbitPath: '\u8F68\u9053\u8DEF\u5F84',
+    axis: '\u663E\u793A\u5730\u8F74\u503E\u89D2',
+    polaris: '\u5317\u6781\u661F',
+    polarisLine: '\u5317\u6781\u661F\u6307\u793A\u7EBF',
+    dipper: '\u5317\u6597\u4E03\u661F',
+    dipperLine: '\u5317\u6597\u6307\u793A\u7EBF',
+    rays: '\u592A\u9633\u5149\u7EBF',
+    equator: '\u8D64\u9053',
+    starfield: '\u80CC\u666F\u6052\u661F',
+    observer: '\u89C2\u6D4B\u89C6\u89D2',
+    reset: '\u91CD\u7F6E\u76F8\u673A',
+    lblAngle: '\u8F68\u9053\u89D2\u5EA6\uFF1A',
+    lblDay: '\u5E74\u4E2D\u65E5\u671F\uFF1A',
+    lblSeason: { summer: '\u5317\u534A\u7403\u590F\u5B63', winter: '\u5317\u534A\u7403\u51AC\u5B63', equinox: '\u5317\u534A\u7403\u6625\u79CB\u5206' },
+    lblOrbit: '\u516C\u8F6C\uFF1A',
+    lblRotation: '\u81EA\u8F6C\uFF1A',
+    spinRate: '{rev} \u8F6C/\u5206 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
+    lblFps: '\u6E32\u67D3\u5E27\u7387\uFF1A',
+  },
+};
+
+function detectLang() {
+  const raw = (navigator.language || (navigator.languages && navigator.languages[0]) || 'en').toLowerCase();
+  return raw.startsWith('zh') ? 'zh' : 'en';
+}
+
+let lang = detectLang();
+const t = (k) => I18N[lang][k] ?? I18N.en[k];
+
+function applyLang() {
+  const d = I18N[lang];
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+  set('hudTitle', d.title);
+  document.getElementById('hudToggle').title = d.toggleHint;
+  set('lblSpeed', d.orbitSpeed);
+  set('lblRotSpeed', d.rotSpeed);
+  set('lblLat', d.obsLat);
+  set('lblAnnual', d.annual);
+  set('lblPause', d.pause);
+  set('lblClouds', d.clouds);
+  set('lblOrbitPath', d.orbitPath);
+  set('lblAxis', d.axis);
+  set('lblPolaris', d.polaris);
+  set('lblPolarisLine', d.polarisLine);
+  set('lblDipper', d.dipper);
+  set('lblDipperLine', d.dipperLine);
+  set('lblRays', d.rays);
+  set('lblEquator', d.equator);
+  set('lblStarfield', d.starfield);
+  set('lblObserver', d.observer);
+  set('lblReset', d.reset);
+  set('lblAngle', d.lblAngle);
+  set('lblDay', d.lblDay);
+  set('lblOrbit', d.lblOrbit);
+  set('lblRotation', d.lblRotation);
+  set('lblFps', d.lblFps);
+}
+applyLang();
+
 // Render only when something actually changes (idle pause = zero GPU work).
 let needsRender = true;
 const requestRender = () => { needsRender = true; };
+
+// Sync toggle state with the scene on startup (change events only fire on input)
+hitRays.visible = missRays.visible = $('rays').checked;
+hintLine.visible = $('polarisLine').checked;
+pointerHint.visible = $('dipperLine').checked;
 
 $('pause').addEventListener('change', (e) => {
   paused = e.target.checked;
@@ -286,23 +743,161 @@ $('clouds').addEventListener('change', (e) => { clouds.visible = cloudsOn = e.ta
 $('orbitPath').addEventListener('change', (e) => { orbitLine.visible = e.target.checked; requestRender(); });
 $('axis').addEventListener('change', (e) => { axisGroup.visible = e.target.checked; requestRender(); });
 $('polaris').addEventListener('change', (e) => {
-  polarisGroup.visible = hintLine.visible = e.target.checked;
+  polarisGroup.visible = e.target.checked;
   requestRender();
 });
+$('polarisLine').addEventListener('change', (e) => {
+  hintLine.visible = e.target.checked;
+  requestRender();
+});
+$('dipper').addEventListener('change', (e) => { bdGroup.visible = e.target.checked; requestRender(); });
+$('dipperLine').addEventListener('change', (e) => {
+  pointerHint.visible = e.target.checked;
+  requestRender();
+});
+$('rays').addEventListener('change', (e) => { hitRays.visible = missRays.visible = e.target.checked; requestRender(); });
+$('equator').addEventListener('change', (e) => { equator.visible = e.target.checked; requestRender(); });
+$('starfield').addEventListener('change', (e) => { starfieldGroup.visible = e.target.checked; requestRender(); });
 $('speed').addEventListener('input', requestRender);
 $('rotSpeed').addEventListener('input', requestRender);
-$('reset').addEventListener('click', () => {
-  camera.position.set(0, 9, 26);
-  controls.target.set(0, 0, 0);
+$('lat').addEventListener('input', requestRender);
+$('annual').addEventListener('change', (e) => {
+  if (e.target.checked && !observerMode) setObserverMode(true);
+  requestRender();
+});
+// ---- Observer view ----
+// Pins the camera to Earth (above the north pole), looking toward Polaris.
+// Because the camera rides the spinning Earth, the sky appears to wheel
+// around the pole -- the Big Dipper visibly circles Polaris.
+const OBSERVER_FOV = 115;
+const OBSERVER_RADIUS = 1.02;   // just above the surface, so the ground and
+                                // horizon are visible in the lower view
+let observerMode = false;
+let savedCamOffset = null, savedTargetOffset = null, savedFov = null, savedUp = null;
+const _obsCamPos = new THREE.Vector3();
+const _obsUp = new THREE.Vector3();
+const _antiSolar = new THREE.Vector3();
+const _obsViewAxis = new THREE.Vector3();
+
+// Stand on the spinning Earth at the chosen latitude, looking toward Polaris.
+// camera.up = local vertical, so the horizon stays level while the sky wheels
+// around the pole -- the Big Dipper circles Polaris, dipping under the
+// horizon at lower latitudes. Runs every render (even while paused).
+// The camera is anchored in the Earth's local frame (a child of the spinning
+// earth mesh), so it stays at exactly one fixed location on the surface;
+// its world position circles the axis with the planet's rotation.
+// With "Annual view" checked, the roll reference becomes the anti-solar
+// direction instead of the local vertical: the diurnal spin is cancelled,
+// the Sun stays fixed, and only the annual drift remains -- the Dipper
+// completes exactly one circle around Polaris per orbit (per year).
+function updateObserverView() {
+  const latRad = Number($('lat').value) * Math.PI / 180;
+  observer.position.set(
+    Math.cos(latRad) * OBSERVER_RADIUS,
+    Math.sin(latRad) * OBSERVER_RADIUS,
+    0
+  );
+  observer.updateWorldMatrix(true, true);
+  observer.getWorldPosition(_obsCamPos);
+  camera.position.copy(_obsCamPos);
+  _obsUp.copy(_obsCamPos).sub(earthPivot.position).normalize();
+  if ($('annual').checked) {
+    _antiSolar.copy(earthPivot.position).negate().normalize();
+    _obsViewAxis.copy(POLARIS_POS).sub(_obsCamPos).normalize();
+    _obsUp.copy(_antiSolar)
+      .addScaledVector(_obsViewAxis, -_antiSolar.dot(_obsViewAxis))
+      .normalize();
+  }
+  camera.up.copy(_obsUp);
+  camera.lookAt(POLARIS_POS);
+}
+
+function setObserverMode(on) {
+  if (on === observerMode) return;
+  observerMode = on;
+  if (on) {
+    // Remember the view RELATIVE to Earth, so it can be restored correctly
+    // even though the planet keeps orbiting while in observer mode.
+    savedCamOffset = camera.position.clone().sub(earthPivot.position);
+    savedTargetOffset = controls.target.clone().sub(earthPivot.position);
+    savedFov = camera.fov;
+    savedUp = camera.up.clone();
+    camera.fov = OBSERVER_FOV;
+    camera.updateProjectionMatrix();
+    controls.enabled = false;
+  } else {
+    camera.position.copy(earthPivot.position).add(savedCamOffset);
+    controls.target.copy(earthPivot.position).add(savedTargetOffset);
+    camera.up.copy(savedUp);
+    camera.fov = savedFov;
+    camera.updateProjectionMatrix();
+    controls.enabled = true;
+    prevEarthPos.copy(earthPivot.position);
+  }
+  $('observer').classList.toggle('active', on);
+  requestRender();
+}
+$('observer').addEventListener('click', () => setObserverMode(!observerMode));
+
+// Default framing: the Earth up close with the Sun also in frame -- the
+// camera at close distance with a small lateral offset, so the Sun's disc
+// sits just beside the Earth's limb.
+function frameDefault() {
+  const p = earthPivot.position;
+  const d = Math.hypot(p.x, p.z) || 1;
+  camera.position.set(p.x + (p.x / d) * 11.5, p.y, p.z + (p.z / d) * 11.5 + 1.6);
+  controls.target.set(p.x, p.y, p.z);
   controls.update();
+}
+
+$('reset').addEventListener('click', () => {
+  if (observerMode) setObserverMode(false);
+  frameDefault();
   requestRender();
 });
 controls.addEventListener('change', requestRender);
+
+// ---- Collapsible HUD panel ----
+const hud = document.getElementById('hud');
+const hudToggle = document.getElementById('hudToggle');
+
+function setHudCollapsed(collapsed) {
+  hud.classList.toggle('collapsed', collapsed);
+  requestRender();
+  try { localStorage.setItem('orbit.hudCollapsed', collapsed ? '1' : '0'); } catch {}
+}
+
+hudToggle.addEventListener('click', () => {
+  setHudCollapsed(!hud.classList.contains('collapsed'));
+});
+
+let hudSaved = null;
+try { hudSaved = localStorage.getItem('orbit.hudCollapsed'); } catch {}
+if (hudSaved !== null) {
+  setHudCollapsed(hudSaved === '1');
+} else if (matchMedia('(max-width: 640px)').matches) {
+  setHudCollapsed(true);   // mobile users start with the panel folded
+}
 
 const angleLabel = document.getElementById('angle');
 const orbitRateLabel = document.getElementById('orbitRate');
 const spinRateLabel = document.getElementById('spinRate');
 const fpsLabel = document.getElementById('fps');
+const dayLabel = document.getElementById('day');
+const seasonLabel = document.getElementById('season');
+const _daySunDir = new THREE.Vector3();
+
+// Day of year (1-365) + Northern-hemisphere season from the Sun's declination
+function refreshDayOfYear() {
+  const day = Math.floor(((angle / (2 * Math.PI)) % 1) * 365.25) + 1;
+  dayLabel.textContent = String(day);
+  _daySunDir.copy(earthPivot.position).negate().normalize();
+  const decDeg = 90 - Math.acos(
+    Math.min(1, Math.max(-1, _daySunDir.dot(POLARIS_DIR)))
+  ) * 180 / Math.PI;
+  seasonLabel.textContent =
+    decDeg > 10 ? t('lblSeason').summer : decDeg < -10 ? t('lblSeason').winter : t('lblSeason').equinox;
+}
 
 // ---- Animation loop (power & heat friendly) ----
 const worldTime = { value: 0 };
@@ -317,6 +912,11 @@ let lastTick = 0;
 let accumulator = 0;
 let lastRenderTime = 0;
 const _northPole = new THREE.Vector3();   // reused, no per-frame allocation
+
+// Follow camera: translated by Earth's orbital motion each frame, so the
+// Earth stays centered while the rest of the system sweeps past.
+const prevEarthPos = new THREE.Vector3(ORBIT_RADIUS, 0, 0);
+const _followDelta = new THREE.Vector3();
 
 let fpsCount = 0;
 let fpsMeasureTime = performance.now();
@@ -340,13 +940,26 @@ function updateScene(dt) {
     Math.sin(angle) * ORBIT_RADIUS
   );
 
+  if (!observerMode) {
+    // Follow camera (relative view is preserved; drag still works as usual)
+    _followDelta.copy(earthPivot.position).sub(prevEarthPos);
+    camera.position.add(_followDelta);
+    controls.target.add(_followDelta);
+  }
+  prevEarthPos.copy(earthPivot.position);
+
+  // Sun light rays: the cylinder follows the Sun-Earth axis
+  _rayDir.copy(earthPivot.position).normalize();
+  updateRays(hitRays, RAY_HIT, true);
+  updateRays(missRays, RAY_MISS, false);
+
   // Earth's own rotation (about its fixed, Polaris-pointing axis)
   const spin = spinRadPerSec();
   earth.rotation.y += spin * dt;
   clouds.rotation.y += spin * 1.15 * dt;
 
   // Hint line: from Earth's north pole toward Polaris (reused vectors/buffers)
-  _northPole.copy(earthPivot.position).addScaledVector(POLARIS_DIR, 3.1);
+  _northPole.copy(earthPivot.position).addScaledVector(POLARIS_DIR, 2.6);
   const hintPositions = hintLine.geometry.attributes.position;
   hintPositions.setXYZ(0, _northPole.x, _northPole.y, _northPole.z);
   hintPositions.setXYZ(1, POLARIS_POS.x, POLARIS_POS.y, POLARIS_POS.z);
@@ -358,15 +971,20 @@ function updateScene(dt) {
 
   angleLabel.innerHTML = ((angle * 180 / Math.PI) % 360).toFixed(1) + '&deg;';
   orbitRateLabel.innerHTML = orbitDegPerSec().toFixed(1) + '&deg;/s';
-  spinRateLabel.innerHTML = (spinRadPerSec() * 60 / (2 * Math.PI)).toFixed(1) + ' rev/min';
+  const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
+  spinRateLabel.textContent = t('spinRate')
+    .replace('{rev}', (spinRadPerSec() * 60 / (2 * Math.PI)).toFixed(0))
+    .replace('{n}', (365.25 * realRatio).toFixed(1));
+
+  refreshDayOfYear();
 
   // Sun subtle pulse
-  const t = worldTime.value;
-  sun.scale.setScalar(1 + 0.012 * Math.sin(t * 2.4));
-  glow.material.opacity = 0.85 + 0.1 * Math.sin(t * 1.7);
+  const pulse = worldTime.value;
+  sun.scale.setScalar(1 + 0.012 * Math.sin(pulse * 2.4));
+  glow.material.opacity = 0.85 + 0.1 * Math.sin(pulse * 1.7);
 
-  // Polaris twinkle
-  polarisSprite.scale.setScalar(3.4 + 0.25 * Math.sin(t * 2.1));
+  // Polaris twinkle (37.5 solar radii -> ~26250 units)
+  polarisSprite.scale.setScalar(37.5 * 700 + 1930 * Math.sin(pulse * 2.1));
 }
 
 function animate(now) {
@@ -384,7 +1002,8 @@ requestAnimationFrame(animate);
       lastRenderTime = now;
       needsRender = false;
       measureFps();
-      controls.update();
+      if (observerMode) updateObserverView();
+      if (!observerMode) controls.update();
       renderer.render(scene, camera);
     }
     return;
@@ -397,7 +1016,8 @@ requestAnimationFrame(animate);
     accumulator = 0;
     measureFps();
     updateScene(dt);
-    controls.update();
+    if (observerMode) updateObserverView();
+    if (!observerMode) controls.update();
     renderer.render(scene, camera);
   }
 }
@@ -410,6 +1030,7 @@ addEventListener('resize', () => {
 });
 
 requestAnimationFrame(animate);
+refreshDayOfYear();
 </script>
 </body>
 </html>
