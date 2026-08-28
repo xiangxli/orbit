@@ -48,6 +48,9 @@
   #hud .stat { font-size: 11px; color: #7f8db0; margin-top: 8px; }
   #hud .stat span { color: #ffd27a; }
   #hud { touch-action: manipulation; }
+  #todayRow { cursor: pointer; }
+  #todayRow:hover { color: #ffffff; text-shadow: 0 0 8px rgba(255, 210, 122, 0.9), 0 0 16px rgba(255, 210, 122, 0.5); }
+  #todayRow:hover span { color: #ffd27a; }
   @media (max-width: 640px) {
     #hud { top: 8px; left: 8px; right: auto; max-width: calc(100vw - 16px); }
     #hudToggle { width: 36px; height: 36px; }
@@ -92,6 +95,7 @@
     <button id="observer"><span id="lblObserver">Observer view</span></button>
     <button id="reset"><span id="lblReset">Reset camera</span></button>
     <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
+    <div class="stat" id="todayRow" title="Click to go to today"><span id="lblToday">Today:</span> <span id="todayDate">-</span></div>
     <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
     <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
     <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
@@ -120,10 +124,27 @@ const SKY_RADIUS = 850000;           // decorative sky objects live beyond the o
                                      // stellar parallax below ~1.5deg so Polaris sits
                                      // at its true altitude from any observer)
 
+// ---- Today mapping ----
+// The internal calendar is anchored so orbit angle 0 = Dec 21 (Northern
+// winter solstice). The "Today" button jumps the demo state to the real
+// current date via this mapping.
+const DAYS_YEAR = 365.25;
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 1);
+  return Math.floor((date - start) / 86400000) + 1;
+}
+const SOLSTICE_DAY = dayOfYear(new Date(new Date().getFullYear(), 11, 21));
+function demoDayFromToday() {
+  const today = dayOfYear(new Date());
+  let d = (today - SOLSTICE_DAY + 1) % DAYS_YEAR;
+  if (d < 1) d += DAYS_YEAR;
+  return d;
+}
+
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 2000000);
 // Default view: the Earth up close with the Sun's disc just beside its limb
-// (close distance + small lateral offset).
+// (close distance + small lateral offset), starting at day 1 (Dec 21).
 camera.position.set(ORBIT_RADIUS + 11.5, 0, 1.6);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'low-power', logarithmicDepthBuffer: true });
@@ -224,7 +245,7 @@ const POLARIS_POS = POLARIS_DIR.clone().multiplyScalar(POLARIS_DIST);
 
 const earthPivot = new THREE.Group();     // positioned along the orbit each frame
 earthPivot.rotation.z = -EARTH_TILT;      // fixed axial tilt -> spin axis = POLARIS_DIR
-earthPivot.position.set(ORBIT_RADIUS, 0, 0);   // start at day 1
+earthPivot.position.set(ORBIT_RADIUS, 0, 0);   // start at day 1 (Dec 21)
 scene.add(earthPivot);
 
 const loader = new THREE.TextureLoader();
@@ -650,6 +671,7 @@ const I18N = {
     observer: 'Observer view',
     reset: 'Reset camera',
     lblAngle: 'Orbital angle:',
+    lblToday: 'Today:',
     lblDay: 'Day of year:',
     lblSeason: { summer: 'NH Summer', winter: 'NH Winter', equinox: 'NH Equinox' },
     lblOrbit: 'Orbit:',
@@ -678,6 +700,7 @@ const I18N = {
     observer: '\u89C2\u6D4B\u89C6\u89D2',
     reset: '\u91CD\u7F6E\u76F8\u673A',
     lblAngle: '\u8F68\u9053\u89D2\u5EA6\uFF1A',
+    lblToday: '\u4ECA\u5929\uFF1A',
     lblDay: '\u5E74\u4E2D\u65E5\u671F\uFF1A',
     lblSeason: { summer: '\u5317\u534A\u7403\u590F\u5B63', winter: '\u5317\u534A\u7403\u51AC\u5B63', equinox: '\u5317\u534A\u7403\u6625\u79CB\u5206' },
     lblOrbit: '\u516C\u8F6C\uFF1A',
@@ -718,7 +741,12 @@ function applyLang() {
   set('lblObserver', d.observer);
   set('lblReset', d.reset);
   set('lblAngle', d.lblAngle);
+  set('lblToday', d.lblToday);
   set('lblDay', d.lblDay);
+  document.getElementById('todayDate').textContent = new Intl.DateTimeFormat(
+    lang === 'zh' ? 'zh-CN' : 'en-US',
+    { dateStyle: 'full' }
+  ).format(new Date());
   set('lblOrbit', d.lblOrbit);
   set('lblRotation', d.lblRotation);
   set('lblFps', d.lblFps);
@@ -840,15 +868,29 @@ function setObserverMode(on) {
 $('observer').addEventListener('click', () => setObserverMode(!observerMode));
 
 // Default framing: the Earth up close with the Sun also in frame -- the
-// camera at close distance with a small lateral offset, so the Sun's disc
-// sits just beside the Earth's limb.
+// camera at close distance with a small lateral offset (perpendicular to the
+// Earth-Sun axis), so the Sun's disc sits just beside the Earth's limb.
 function frameDefault() {
   const p = earthPivot.position;
   const d = Math.hypot(p.x, p.z) || 1;
-  camera.position.set(p.x + (p.x / d) * 11.5, p.y, p.z + (p.z / d) * 11.5 + 1.6);
+  const px = -p.z / d;
+  const pz = p.x / d;
+  camera.position.set(p.x + (p.x / d) * 11.5 + px * 1.6, p.y, p.z + (p.z / d) * 11.5 + pz * 1.6);
   controls.target.set(p.x, p.y, p.z);
   controls.update();
 }
+
+// ---- Today: click the date row to jump the demo state to the real date ----
+function goToToday() {
+  if (observerMode) setObserverMode(false);
+  angle = ((demoDayFromToday() - 1) / DAYS_YEAR) * 2 * Math.PI;
+  earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, Math.sin(angle) * ORBIT_RADIUS);
+  prevEarthPos.copy(earthPivot.position);
+  frameDefault();
+  refreshDayOfYear();
+  requestRender();
+}
+$('todayRow').addEventListener('click', goToToday);
 
 $('reset').addEventListener('click', () => {
   if (observerMode) setObserverMode(false);
@@ -887,16 +929,17 @@ const dayLabel = document.getElementById('day');
 const seasonLabel = document.getElementById('season');
 const _daySunDir = new THREE.Vector3();
 
-// Day of year (1-365) + Northern-hemisphere season from the Sun's declination
+// Real day of year (1-365) + Northern-hemisphere season from the Sun's
+// declination. Day 1 = Jan 1; the orbit angle 0 sits at the Dec 21 solstice.
 function refreshDayOfYear() {
-  const day = Math.floor(((angle / (2 * Math.PI)) % 1) * 365.25) + 1;
+  const day = Math.floor(((angle / (2 * Math.PI)) * DAYS_YEAR + SOLSTICE_DAY - 1) % DAYS_YEAR) + 1;
   dayLabel.textContent = String(day);
   _daySunDir.copy(earthPivot.position).negate().normalize();
   const decDeg = 90 - Math.acos(
     Math.min(1, Math.max(-1, _daySunDir.dot(POLARIS_DIR)))
   ) * 180 / Math.PI;
   seasonLabel.textContent =
-    decDeg > 10 ? t('lblSeason').summer : decDeg < -10 ? t('lblSeason').winter : t('lblSeason').equinox;
+    decDeg > 8 ? t('lblSeason').summer : decDeg < -8 ? t('lblSeason').winter : t('lblSeason').equinox;
 }
 
 // ---- Animation loop (power & heat friendly) ----
