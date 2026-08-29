@@ -1035,27 +1035,15 @@ const STAR_CATALOG = [
 
 let pointing = null;              // (reserved) camera framing state
 const _pointDir = new THREE.Vector3();
-const _pointPerp = new THREE.Vector3();
-const _upY = new THREE.Vector3(0, 1, 0);
-const _upX = new THREE.Vector3(1, 0, 0);
 
-// Point at a star using the load-view framing: the Earth stays centered
-// with the chosen star beside it, exactly like the Sun appears on load.
-// The camera takes the same distance and lateral offset as the load view
-// (design decision, see README).
+// Simply rotate the view so the chosen star is centered: the camera stays
+// where it is, and the look direction turns toward the star -- exactly what
+// the user would do by dragging.
 function pointCameraAt(worldPos) {
   if (observerMode) setObserverMode(false);
-  _pointDir.copy(worldPos).sub(earthPivot.position).normalize();
-  _pointPerp.crossVectors(_upY, _pointDir);   // sign matches the load view (object on the left)
-  if (_pointPerp.lengthSq() < 1e-6) _pointPerp.crossVectors(_upX, _pointDir);
-  _pointPerp.normalize();
-  const e = earthPivot.position;
-  camera.position.set(
-    e.x - _pointDir.x * 11.5 + _pointPerp.x * 1.6,
-    e.y - _pointDir.y * 11.5 + _pointPerp.y * 1.6,
-    e.z - _pointDir.z * 11.5 + _pointPerp.z * 1.6
-  );
-  controls.target.set(e.x, e.y, e.z);
+  const r = camera.position.distanceTo(controls.target) || 1;
+  _pointDir.copy(worldPos).sub(camera.position).normalize();
+  controls.target.copy(camera.position).addScaledVector(_pointDir, r);
   controls.update();
   requestRender();
 }
@@ -1275,7 +1263,6 @@ addEventListener('resize', () => {
 
 requestAnimationFrame(animate);
 refreshDayOfYear();
-window.__dbg = { camera, controls, POLARIS_POS, earthPivot };
 </script>
 </body>
 </html>
