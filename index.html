@@ -76,8 +76,11 @@
     </button>
   </div>
   <div id="hudBody">
-    <label><span id="lblSpeed">Orbit speed</span>
-      <input type="range" id="speed" min="0" max="300" value="5" step="1" />
+    <label><span id="lblDayLen">Day length (s)</span>
+      <input type="range" id="dayLen" min="0.5" max="60" value="3.4" step="0.1" />
+    </label>
+    <label><span id="lblSpeed">Orbit speed (% real)</span>
+      <input type="range" id="speed" min="0" max="100" value="100" step="1" />
     </label>
     <label><span id="lblRotSpeed">Rotation speed (% real)</span>
       <input type="range" id="rotSpeed" min="0" max="100" value="100" step="1" />
@@ -653,23 +656,23 @@ let cloudsOn = true;
 let angle = 0;
 let moonAngle = 0;
 
-// Nonlinear (quadratic-ish) mappings: the low end of each slider gets
-// fine-grained steps, so slow-motion Earth rotation is tunable.
-// Orbit speed: slider 0-300, default 5 -> ~0.29 deg/s (one orbit ~21 min).
-// The rotation is locked to the real 365.25:1 ratio, so a slower orbit is
-// what makes the daily spin watchable on load.
+// The DAY LENGTH is the master time scale (seconds per rotation, default
+// 3.4 s). Everything else derives from it at the real ratios, each with its
+// own "% of real" tweak slider (quadratic for fine control at the low end).
+function dayLenSec() {
+  return Number($('dayLen').value);
+}
+// Orbit: real = 1 orbit per 365.25 days. Slider 0-100, default 100.
 function orbitDegPerSec() {
-  return 15 * Math.pow(Number($('speed').value) / 30, 2.2);
+  const pct = Math.pow(Number($('speed').value) / 100, 2);
+  return (360 / (dayLenSec() * 365.25)) * pct;
 }
-// Rotation speed: % of the REAL rotation rate. The real Earth spins 365.25
-// times per orbit, so at 100% the spin rate is locked to that ratio.
-// Slider 0-100, default 100 -> exactly 365.25 rotations per orbit.
+// Rotation: real = 1 spin per day. Slider 0-100, default 100.
 function spinRadPerSec() {
-  const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
-  return orbitDegPerSec() * (Math.PI / 180) * 365.25 * realRatio;
+  const pct = Math.pow(Number($('rotSpeed').value) / 100, 2);
+  return (2 * Math.PI / dayLenSec()) * pct;
 }
-// Moon speed: % of the REAL lunar rate. The real Moon orbits Earth 13.37
-// times per year (365.25 / 27.32), so at 100% the ratio is locked.
+// Moon: real = 1 orbit per 27.32 days. Slider 0-100, default 100.
 function moonFactor() {
   return Math.pow(Number($('moonSpeed').value) / 100, 2);
 }
@@ -692,7 +695,8 @@ $('dipperLine').checked = false;
 $('rays').checked = false;
 $('equator').checked = true;
 $('starfield').checked = false;
-$('speed').value = 5;
+$('dayLen').value = 3.4;
+$('speed').value = 100;
 $('rotSpeed').value = 100;
 $('moonSpeed').value = 100;
 $('lat').value = 45;
@@ -703,7 +707,8 @@ const I18N = {
   en: {
     title: 'EARTH \u2022 SUN SYSTEM',
     toggleHint: 'Show/hide controls',
-    orbitSpeed: 'Orbit speed',
+    lblDayLen: 'Day length (s)',
+    orbitSpeed: 'Orbit speed (% real)',
     rotSpeed: 'Rotation speed (% real)',
     moonSpeed: 'Moon speed (% real)',
     obsLat: 'Observer latitude (observer view)',
@@ -740,7 +745,8 @@ const I18N = {
   zh: {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
     toggleHint: '\u663E\u793A/\u9690\u85CF\u9762\u677F',
-    orbitSpeed: '\u516C\u8F6C\u901F\u5EA6',
+    lblDayLen: '\u4E00\u5929\u65F6\u957F\uFF08\u79D2\uFF09',
+    orbitSpeed: '\u516C\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
     rotSpeed: '\u81EA\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
     moonSpeed: '\u6708\u7403\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
     obsLat: '\u89C2\u6D4B\u7EAC\u5EA6\uFF08\u89C2\u6D4B\u89C6\u89D2\uFF09',
@@ -789,6 +795,7 @@ function applyLang() {
   const set = (id, v) => { document.getElementById(id).textContent = v; };
   set('hudTitle', d.title);
   document.getElementById('hudToggle').title = d.toggleHint;
+  set('lblDayLen', d.lblDayLen);
   set('lblSpeed', d.orbitSpeed);
   set('lblRotSpeed', d.rotSpeed);
   set('lblMoonSpeed', d.moonSpeed);
@@ -861,6 +868,7 @@ $('dipperLine').addEventListener('change', (e) => {
 $('rays').addEventListener('change', (e) => { hitRays.visible = missRays.visible = e.target.checked; requestRender(); });
 $('equator').addEventListener('change', (e) => { equator.visible = e.target.checked; requestRender(); });
 $('starfield').addEventListener('change', (e) => { starfieldGroup.visible = e.target.checked; requestRender(); });
+$('dayLen').addEventListener('input', requestRender);
 $('speed').addEventListener('input', requestRender);
 $('rotSpeed').addEventListener('input', requestRender);
 $('moonSpeed').addEventListener('input', requestRender);
@@ -1016,10 +1024,11 @@ function goToToday() {
 }
 $('todayRow').addEventListener('click', goToToday);
 
-// Reset ALL speeds to their defaults, restoring the real ratios: orbit
-// speed to its default clock, Earth rotation and Moon orbit to 100% of real.
+// Reset ALL speeds to their defaults: the day length to its default and all
+// ratios to 100% of real.
 $('resetRatio').addEventListener('click', () => {
-  $('speed').value = 5;
+  $('dayLen').value = 3.4;
+  $('speed').value = 100;
   $('rotSpeed').value = 100;
   $('moonSpeed').value = 100;
   requestRender();
@@ -1199,9 +1208,9 @@ function updateScene(dt) {
   updateRays(hitRays, RAY_HIT, true);
   updateRays(missRays, RAY_MISS, false);
 
-  // Moon: rides the Earth, orbiting at its own rate (13.37x the Earth's
-  // orbital rate at 100% = the real ratio, independently adjustable).
-  moonAngle += orbitDegPerSec() * (Math.PI / 180) * dt * MOON_ORBITS_PER_YEAR * moonFactor();
+  // Moon: rides the Earth, orbiting once per 27.32 days at 100% (the real
+  // ratio), independently adjustable via the Moon slider.
+  moonAngle += (2 * Math.PI / dayLenSec()) * (MOON_ORBITS_PER_YEAR / DAYS_YEAR) * moonFactor() * dt;
   moonGroup.position.copy(earthPivot.position);
   moonGroup.rotation.y = moonAngle;
 
@@ -1230,9 +1239,10 @@ function updateScene(dt) {
     .replace('{rev}', (spinRate * 60 / (2 * Math.PI)).toFixed(0))
     .replace('{n}', (365.25 * realRatio).toFixed(1))
     .replace('{d}', daySec);
+  const moonDeg = (360 / (dayLenSec() * 27.32)) * moonFactor();
   moonRateLabel.textContent = t('moonRate')
-    .replace('{sp}', (orbitDegPerSec() * MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1))
-    .replace('{n}', (MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1));
+    .replace('{sp}', moonDeg.toFixed(1))
+    .replace('{n}', (orbitDegPerSec() > 0 ? moonDeg / orbitDegPerSec() : 0).toFixed(1));
 
   refreshDayOfYear();
 
