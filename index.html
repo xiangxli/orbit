@@ -83,7 +83,7 @@
     <label><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
     <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
     <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
-    <label><input type="checkbox" id="orbitPath" checked /> <span id="lblOrbitPath">Orbit path</span></label>
+    <label><input type="checkbox" id="orbitPath" /> <span id="lblOrbitPath">Orbit path</span></label>
     <label><input type="checkbox" id="axis" /> <span id="lblAxis">Show Earth's tilt axis</span></label>
     <label><input type="checkbox" id="polaris" checked /> <span id="lblPolaris">Polaris</span></label>
     <label><input type="checkbox" id="polarisLine" /> <span id="lblPolarisLine">Polaris hint line</span></label>
@@ -634,7 +634,7 @@ const $ = (id) => document.getElementById(id);
 $('annual').checked = false;
 $('pause').checked = false;
 $('clouds').checked = true;
-$('orbitPath').checked = true;
+$('orbitPath').checked = false;
 $('axis').checked = false;
 $('polaris').checked = true;
 $('polarisLine').checked = false;
@@ -761,6 +761,7 @@ const requestRender = () => { needsRender = true; };
 hitRays.visible = missRays.visible = $('rays').checked;
 hintLine.visible = $('polarisLine').checked;
 pointerHint.visible = $('dipperLine').checked;
+orbitLine.visible = $('orbitPath').checked;
 
 $('pause').addEventListener('change', (e) => {
   paused = e.target.checked;
@@ -797,10 +798,19 @@ $('annual').addEventListener('change', (e) => {
 // Pins the camera to Earth (above the north pole), looking toward Polaris.
 // Because the camera rides the spinning Earth, the sky appears to wheel
 // around the pole -- the Big Dipper visibly circles Polaris.
-const OBSERVER_FOV = 115;
+const OBSERVER_FOV = 115;   // widest observer field (narrowed by zoom)
 const OBSERVER_RADIUS = 1.02;   // just above the surface, so the ground and
                                 // horizon are visible in the lower view
+
+// Initial observer FOV: on narrow (mobile portrait) screens start tighter so
+// the sky objects (Big Dipper) are already reasonably large.
+function initialObserverFov() {
+  const aspect = innerWidth / innerHeight;
+  return Math.max(60, Math.min(OBSERVER_FOV, OBSERVER_FOV * Math.max(0.55, aspect / 0.8)));
+}
+
 let observerMode = false;
+let obsFov = null;               // current observer FOV (null = not observing)
 let savedCamOffset = null, savedTargetOffset = null, savedFov = null, savedUp = null;
 const _obsCamPos = new THREE.Vector3();
 const _obsUp = new THREE.Vector3();
@@ -838,6 +848,13 @@ function updateObserverView() {
   }
   camera.up.copy(_obsUp);
   camera.lookAt(POLARIS_POS);
+
+  // Observer zoom: telephoto via FOV. The stars are at effectively infinite
+  // distance, so dollying can't magnify them -- only a narrower field can.
+  if (camera.fov !== obsFov) {
+    camera.fov = obsFov;
+    camera.updateProjectionMatrix();
+  }
 }
 
 function setObserverMode(on) {
@@ -850,7 +867,8 @@ function setObserverMode(on) {
     savedTargetOffset = controls.target.clone().sub(earthPivot.position);
     savedFov = camera.fov;
     savedUp = camera.up.clone();
-    camera.fov = OBSERVER_FOV;
+    obsFov = initialObserverFov();
+    camera.fov = obsFov;
     camera.updateProjectionMatrix();
     controls.enabled = false;
   } else {
@@ -861,11 +879,36 @@ function setObserverMode(on) {
     camera.updateProjectionMatrix();
     controls.enabled = true;
     prevEarthPos.copy(earthPivot.position);
+    obsFov = null;
   }
   $('observer').classList.toggle('active', on);
   requestRender();
 }
 $('observer').addEventListener('click', () => setObserverMode(!observerMode));
+
+// Wheel + pinch zoom in observer view: telephoto via FOV (narrowing the
+// field magnifies the sky -- stars are at infinite distance).
+let pinchDist = null;
+renderer.domElement.addEventListener('wheel', (e) => {
+  if (!observerMode) return;
+  e.preventDefault();
+  obsFov = Math.min(OBSERVER_FOV, Math.max(8, obsFov * Math.pow(1.0015, e.deltaY)));
+  requestRender();
+}, { passive: false });
+renderer.domElement.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  }
+}, { passive: true });
+renderer.domElement.addEventListener('touchmove', (e) => {
+  if (!observerMode || e.touches.length !== 2 || pinchDist === null) return;
+  e.preventDefault();
+  const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  obsFov = Math.min(OBSERVER_FOV, Math.max(8, obsFov * (pinchDist / d)));
+  pinchDist = d;
+  requestRender();
+}, { passive: false });
+renderer.domElement.addEventListener('touchend', () => { pinchDist = null; });
 
 // Default framing: the Earth up close with the Sun also in frame -- the
 // camera at close distance with a small lateral offset (perpendicular to the
@@ -881,12 +924,12 @@ function frameDefault() {
 }
 
 // ---- Today: click the date row to jump the demo state to the real date ----
+// Only the date/position changes; the current view (camera, mode, framing)
+// is left untouched -- the follow camera simply rides the Earth to its new
+// position, preserving the relative view.
 function goToToday() {
-  if (observerMode) setObserverMode(false);
   angle = ((demoDayFromToday() - 1) / DAYS_YEAR) * 2 * Math.PI;
   earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, Math.sin(angle) * ORBIT_RADIUS);
-  prevEarthPos.copy(earthPivot.position);
-  frameDefault();
   refreshDayOfYear();
   requestRender();
 }
