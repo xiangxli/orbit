@@ -12,6 +12,29 @@ A true-scale interactive demonstration of the Earth orbiting the Sun, built with
 - Big Dipper (7 real stars + Alcor), the Taoist nine-star Dipper (洞明/隐元), Polaris, starfield
 - i18n (device-language detection, English default), collapsible HUD
 
+## Design decisions
+
+### Star catalog: where the camera is based (2026)
+
+When a star is chosen from the "Go to:" catalog, the camera framing follows
+**Option 2 — Earth-relative, camera orbits**:
+
+- The camera keeps its **current distance from the Earth** (the user's zoom is preserved).
+- It flies to the **Earth–star line with a small lateral offset**, so the chosen
+  star is centered in the view and the **Earth stays visible at the edge**
+  (the same composition style as the default Sun framing, generalized to any object).
+- The fly-to animation recomputes the framing against the Earth's *current*
+  position each frame, so the moving planet can't leave the camera stranded.
+
+Rejected alternatives:
+- **Option 1 (star-centered):** camera rotates in place; the star is centered but
+  the Earth leaves the frame (no spatial context).
+- **Option 3 (earth-centered):** Earth stays centered and the star appears at the
+  view's edge — the star is never truly "pointed at".
+
+Rationale: the demo's identity is Earth-relative, and pointing at a star is only
+useful when you can still see *where* that star is relative to Earth.
+
 ## Notes: sidereal day vs solar day, and the 365 vs 366 count
 
 This section records the astronomy behind the demo's rotation ratio and the apparent

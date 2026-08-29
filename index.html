@@ -37,6 +37,11 @@
   #hud label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 7px 0; color: #b9c6e0; cursor: pointer; }
   #hud input[type="range"] { flex: 1; accent-color: #ffd27a; height: 4px; }
   #hud input[type="checkbox"] { accent-color: #ffd27a; }
+  #starList {
+    flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px;
+    background: rgba(20, 26, 40, 0.9); color: #e8eefc;
+    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
+  }
   #observer, #reset {
     margin-top: 8px; width: 100%; padding: 6px 0; font-size: 12px;
     background: rgba(255, 210, 122, 0.12); color: #ffd27a;
@@ -77,6 +82,9 @@
     <label><span id="lblRotSpeed">Rotation speed (% real)</span>
       <input type="range" id="rotSpeed" min="0" max="100" value="100" step="1" />
     </label>
+    <label><span id="lblMoonSpeed">Moon speed (% real)</span>
+      <input type="range" id="moonSpeed" min="0" max="100" value="100" step="1" />
+    </label>
     <label><span id="lblLat">Observer latitude (observer view)</span>
       <input type="range" id="lat" min="0" max="90" value="45" step="1" />
     </label>
@@ -93,12 +101,17 @@
     <label><input type="checkbox" id="rays" /> <span id="lblRays">Sun light rays</span></label>
     <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
     <label><input type="checkbox" id="starfield" /> <span id="lblStarfield">Background stars</span></label>
+    <label><span id="lblGoTo">Go to:</span>
+      <select id="starList"></select>
+    </label>
     <button id="observer"><span id="lblObserver">Observer view</span></button>
+    <button id="resetRatio"><span id="lblResetRatio">Reset real ratios</span></button>
     <button id="reset"><span id="lblReset">Reset camera</span></button>
     <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
     <div class="stat" id="todayRow" title="Click to go to today"><span id="lblToday">Today:</span> <span id="todayDate">-</span></div>
     <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
     <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
+    <div class="stat"><span id="lblMoonRate">Moon:</span> <span id="moonRate"></span></div>
     <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
   </div>
 </div>
@@ -501,9 +514,11 @@ bdGroup.add(alcorLabel);
 const BD_EXTRA = [
   ['\u9690\u5143', 'Yinyuan', 42.5, 14.5, 1.0, 7.0, 230, 235, 255],   // 隐元
 ];
+const bdExtraPos = [];
 for (let i = 0; i < BD_EXTRA.length; i++) {
   const [cn, en, , , , mag, r, g, b] = BD_EXTRA[i];
   const pos = skyDir(BD_EXTRA[i][2], BD_EXTRA[i][3]).multiplyScalar(BD_RADIUS);
+  bdExtraPos.push(pos);
   const star = new THREE.Sprite(new THREE.SpriteMaterial({
     map: makeStarGlow(r, g, b),
     blending: THREE.AdditiveBlending,
@@ -635,6 +650,7 @@ function updateRays(lines, offsets, isHit) {
 let paused = false;
 let cloudsOn = true;
 let angle = 0;
+let moonAngle = 0;
 
 // Nonlinear (quadratic-ish) mappings: the low end of each slider gets
 // fine-grained steps, so slow-motion Earth rotation is tunable.
@@ -650,6 +666,11 @@ function orbitDegPerSec() {
 function spinRadPerSec() {
   const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
   return orbitDegPerSec() * (Math.PI / 180) * 365.25 * realRatio;
+}
+// Moon speed: % of the REAL lunar rate. The real Moon orbits Earth 13.37
+// times per year (365.25 / 27.32), so at 100% the ratio is locked.
+function moonFactor() {
+  return Math.pow(Number($('moonSpeed').value) / 100, 2);
 }
 
 const $ = (id) => document.getElementById(id);
@@ -672,6 +693,7 @@ $('equator').checked = true;
 $('starfield').checked = false;
 $('speed').value = 5;
 $('rotSpeed').value = 100;
+$('moonSpeed').value = 100;
 $('lat').value = 45;
 
 // ---- Internationalization ----
@@ -682,6 +704,7 @@ const I18N = {
     toggleHint: 'Show/hide controls',
     orbitSpeed: 'Orbit speed',
     rotSpeed: 'Rotation speed (% real)',
+    moonSpeed: 'Moon speed (% real)',
     obsLat: 'Observer latitude (observer view)',
     annual: 'Annual view (fixed local time)',
     pause: 'Pause',
@@ -697,14 +720,19 @@ const I18N = {
     equator: 'Equator',
     starfield: 'Background stars',
     observer: 'Observer view',
+    resetRatio: 'Reset real ratios',
     reset: 'Reset camera',
     lblAngle: 'Orbital angle:',
     lblToday: 'Today:',
+    lblGoTo: 'Go to:',
+    lblNone: '\u2014 choose \u2014',
     lblDay: 'Day of year:',
     lblSeason: { summer: 'NH Summer', winter: 'NH Winter', equinox: 'NH Equinox' },
     lblOrbit: 'Orbit:',
     lblRotation: 'Rotation:',
     spinRate: '{rev} rev/min \u00B7 {n}\u00D7 per orbit',
+    lblMoonRate: 'Moon:',
+    moonRate: '{sp}\u00B0/s \u00B7 {n}\u00D7 per orbit',
     lblFps: 'Render rate:',
   },
   zh: {
@@ -712,6 +740,7 @@ const I18N = {
     toggleHint: '\u663E\u793A/\u9690\u85CF\u9762\u677F',
     orbitSpeed: '\u516C\u8F6C\u901F\u5EA6',
     rotSpeed: '\u81EA\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
+    moonSpeed: '\u6708\u7403\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
     obsLat: '\u89C2\u6D4B\u7EAC\u5EA6\uFF08\u89C2\u6D4B\u89C6\u89D2\uFF09',
     annual: '\u5468\u5E74\u89C6\u89D2\uFF08\u56FA\u5B9A\u5F53\u5730\u65F6\u95F4\uFF09',
     pause: '\u6682\u505C',
@@ -727,14 +756,19 @@ const I18N = {
     equator: '\u8D64\u9053',
     starfield: '\u80CC\u666F\u6052\u661F',
     observer: '\u89C2\u6D4B\u89C6\u89D2',
+    resetRatio: '\u91CD\u7F6E\u5B9E\u9645\u6BD4\u4F8B',
     reset: '\u91CD\u7F6E\u76F8\u673A',
     lblAngle: '\u8F68\u9053\u89D2\u5EA6\uFF1A',
     lblToday: '\u4ECA\u5929\uFF1A',
+    lblGoTo: '\u524D\u5F80\uFF1A',
+    lblNone: '\u2014 \u9009\u62E9 \u2014',
     lblDay: '\u5E74\u4E2D\u65E5\u671F\uFF1A',
     lblSeason: { summer: '\u5317\u534A\u7403\u590F\u5B63', winter: '\u5317\u534A\u7403\u51AC\u5B63', equinox: '\u5317\u534A\u7403\u6625\u79CB\u5206' },
     lblOrbit: '\u516C\u8F6C\uFF1A',
     lblRotation: '\u81EA\u8F6C\uFF1A',
     spinRate: '{rev} \u8F6C/\u5206 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
+    lblMoonRate: '\u6708\u7403\uFF1A',
+    moonRate: '{sp}\u00B0/\u79D2 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
     lblFps: '\u6E32\u67D3\u5E27\u7387\uFF1A',
   },
 };
@@ -754,6 +788,7 @@ function applyLang() {
   document.getElementById('hudToggle').title = d.toggleHint;
   set('lblSpeed', d.orbitSpeed);
   set('lblRotSpeed', d.rotSpeed);
+  set('lblMoonSpeed', d.moonSpeed);
   set('lblLat', d.obsLat);
   set('lblAnnual', d.annual);
   set('lblPause', d.pause);
@@ -769,9 +804,11 @@ function applyLang() {
   set('lblEquator', d.equator);
   set('lblStarfield', d.starfield);
   set('lblObserver', d.observer);
+  set('lblResetRatio', d.resetRatio);
   set('lblReset', d.reset);
   set('lblAngle', d.lblAngle);
   set('lblToday', d.lblToday);
+  set('lblGoTo', d.lblGoTo);
   set('lblDay', d.lblDay);
   document.getElementById('todayDate').textContent = new Intl.DateTimeFormat(
     lang === 'zh' ? 'zh-CN' : 'en-US',
@@ -779,6 +816,7 @@ function applyLang() {
   ).format(new Date());
   set('lblOrbit', d.lblOrbit);
   set('lblRotation', d.lblRotation);
+  set('lblMoonRate', d.lblMoonRate);
   set('lblFps', d.lblFps);
 }
 applyLang();
@@ -821,6 +859,7 @@ $('equator').addEventListener('change', (e) => { equator.visible = e.target.chec
 $('starfield').addEventListener('change', (e) => { starfieldGroup.visible = e.target.checked; requestRender(); });
 $('speed').addEventListener('input', requestRender);
 $('rotSpeed').addEventListener('input', requestRender);
+$('moonSpeed').addEventListener('input', requestRender);
 $('lat').addEventListener('input', requestRender);
 $('annual').addEventListener('change', (e) => {
   if (e.target.checked && !observerMode) setObserverMode(true);
@@ -962,10 +1001,91 @@ function frameDefault() {
 function goToToday() {
   angle = ((demoDayFromToday() - 1) / DAYS_YEAR) * 2 * Math.PI;
   earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, Math.sin(angle) * ORBIT_RADIUS);
+  moonAngle = angle * MOON_ORBITS_PER_YEAR * moonFactor();
   refreshDayOfYear();
   requestRender();
 }
 $('todayRow').addEventListener('click', goToToday);
+
+// Reset ALL speeds to their defaults, restoring the real ratios: orbit
+// speed to its default clock, Earth rotation and Moon orbit to 100% of real.
+$('resetRatio').addEventListener('click', () => {
+  $('speed').value = 5;
+  $('rotSpeed').value = 100;
+  $('moonSpeed').value = 100;
+  requestRender();
+});
+
+// ---- Star catalog: pick a name and the camera points at it ----
+// 洞明 is Alcor (辅), so it shares Alcor's position.
+const STAR_CATALOG = [
+  { id: 'sun',      en: 'Sun',                zh: '\u592A\u9633',   pos: () => new THREE.Vector3(0, 0, 0) },
+  { id: 'moon',     en: 'Moon',               zh: '\u6708\u7403',   pos: () => { const p = new THREE.Vector3(); moon.getWorldPosition(p); return p; } },
+  { id: 'polaris',  en: 'Polaris',            zh: '\u5317\u6781\u661F', pos: () => POLARIS_POS.clone() },
+  { id: 'dubhe',    en: 'Dubhe (\u5929\u67A2)', zh: '\u5929\u67A2',  pos: () => bdPos[0].clone() },
+  { id: 'merak',    en: 'Merak (\u5929\u7487)', zh: '\u5929\u7487',  pos: () => bdPos[1].clone() },
+  { id: 'phecda',   en: 'Phecda (\u5929\u73D1)', zh: '\u5929\u73D1',  pos: () => bdPos[2].clone() },
+  { id: 'megrez',   en: 'Megrez (\u5929\u6743)', zh: '\u5929\u6743',  pos: () => bdPos[3].clone() },
+  { id: 'alioth',   en: 'Alioth (\u7389\u8861)', zh: '\u7389\u8861',  pos: () => bdPos[4].clone() },
+  { id: 'mizar',    en: 'Mizar (\u5F00\u9633)', zh: '\u5F00\u9633',  pos: () => bdPos[5].clone() },
+  { id: 'alkaid',   en: 'Alkaid (\u6447\u5149)', zh: '\u6447\u5149',  pos: () => bdPos[6].clone() },
+  { id: 'alcor',    en: 'Alcor (\u6D1E\u660E)', zh: '\u8F85\u661F\uFF08\u6D1E\u660E\uFF09', pos: () => skyDir(35.7, 15.7).multiplyScalar(BD_RADIUS) },
+  { id: 'yinyuan',  en: '\u9690\u5143 Yinyuan (traditional)', zh: '\u9690\u5143', pos: () => bdExtraPos[0].clone() },
+];
+
+let pointing = null;              // camera fly-to animation state
+const _pointDir = new THREE.Vector3();
+const _pointPerp = new THREE.Vector3();
+const _upY = new THREE.Vector3(0, 1, 0);
+const _upX = new THREE.Vector3(1, 0, 0);
+
+// Point at a star while keeping the Earth as the spatial reference (design
+// decision, see README): the camera keeps its current distance from the
+// Earth, flies to the Earth-star line with a small lateral offset, so the
+// star is centered and the Earth stays visible at the edge of the view.
+function pointCameraAt(worldPos) {
+  if (observerMode) setObserverMode(false);
+  const d = Math.max(3, camera.position.distanceTo(earthPivot.position));
+  _pointDir.copy(worldPos).sub(earthPivot.position).normalize();
+  const thetaDeg = Math.max(8, Math.asin(EARTH_RADIUS / d) * 180 / Math.PI + 4);
+  const perp = d * Math.tan(thetaDeg * Math.PI / 180);
+  _pointPerp.crossVectors(_pointDir, _upY);
+  if (_pointPerp.lengthSq() < 1e-6) _pointPerp.crossVectors(_pointDir, _upX);
+  _pointPerp.normalize();
+  pointing = {
+    camFrom: camera.position.clone(),
+    tgtFrom: controls.target.clone(),
+    dir: _pointDir.clone(),
+    perpDir: _pointPerp.clone(),
+    perp,
+    d,
+    t: 0,
+  };
+  requestRender();
+}
+
+function buildStarList() {
+  const sel = $('starList');
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = t('lblNone');
+  sel.appendChild(none);
+  for (const s of STAR_CATALOG) {
+    const o = document.createElement('option');
+    o.value = s.id;
+    o.textContent = lang === 'zh' ? s.zh : s.en;
+    sel.appendChild(o);
+  }
+}
+buildStarList();
+
+$('starList').addEventListener('change', (e) => {
+  const entry = STAR_CATALOG.find((s) => s.id === e.target.value);
+  if (entry) pointCameraAt(entry.pos());
+  $('starList').value = '';
+});
+renderer.domElement.addEventListener('pointerdown', () => { pointing = null; });
 
 $('reset').addEventListener('click', () => {
   if (observerMode) setObserverMode(false);
@@ -999,6 +1119,7 @@ if (hudSaved !== null) {
 const angleLabel = document.getElementById('angle');
 const orbitRateLabel = document.getElementById('orbitRate');
 const spinRateLabel = document.getElementById('spinRate');
+const moonRateLabel = document.getElementById('moonRate');
 const fpsLabel = document.getElementById('fps');
 const dayLabel = document.getElementById('day');
 const seasonLabel = document.getElementById('season');
@@ -1058,8 +1179,9 @@ function updateScene(dt) {
     Math.sin(angle) * ORBIT_RADIUS
   );
 
-  if (!observerMode) {
-    // Follow camera (relative view is preserved; drag still works as usual)
+  if (!observerMode && !pointing) {
+    // Follow camera (relative view is preserved; drag still works as usual).
+    // Skipped while the look-at animation pins the target.
     _followDelta.copy(earthPivot.position).sub(prevEarthPos);
     camera.position.add(_followDelta);
     controls.target.add(_followDelta);
@@ -1071,10 +1193,11 @@ function updateScene(dt) {
   updateRays(hitRays, RAY_HIT, true);
   updateRays(missRays, RAY_MISS, false);
 
-  // Moon: rides the Earth, orbiting 13.37x faster than the Earth's orbit
-  // (derived from the Earth's angle, so "Today" keeps them in sync)
+  // Moon: rides the Earth, orbiting at its own rate (13.37x the Earth's
+  // orbital rate at 100% = the real ratio, independently adjustable).
+  moonAngle += orbitDegPerSec() * (Math.PI / 180) * dt * MOON_ORBITS_PER_YEAR * moonFactor();
   moonGroup.position.copy(earthPivot.position);
-  moonGroup.rotation.y = angle * MOON_ORBITS_PER_YEAR;
+  moonGroup.rotation.y = moonAngle;
 
   // Earth's own rotation (about its fixed, Polaris-pointing axis)
   const spin = spinRadPerSec();
@@ -1098,6 +1221,9 @@ function updateScene(dt) {
   spinRateLabel.textContent = t('spinRate')
     .replace('{rev}', (spinRadPerSec() * 60 / (2 * Math.PI)).toFixed(0))
     .replace('{n}', (365.25 * realRatio).toFixed(1));
+  moonRateLabel.textContent = t('moonRate')
+    .replace('{sp}', (orbitDegPerSec() * MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1))
+    .replace('{n}', (MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1));
 
   refreshDayOfYear();
 
@@ -1117,6 +1243,22 @@ requestAnimationFrame(animate);
   // kept fresh while paused so resuming never injects a time jump.
   const elapsed = lastTick === 0 ? 0 : Math.min(now - lastTick, MAX_DT_MS);
   lastTick = now;
+
+  // Fly-to animation: ease the camera around the Earth to face the star.
+  // The target framing is recomputed each frame against the Earth's current
+  // position, so the moving planet can't leave the camera stranded.
+  if (pointing) {
+    pointing.t += elapsed / 900;   // ~0.9s ease
+    const k = pointing.t >= 1 ? 1 : (1 - Math.cos(pointing.t * Math.PI)) / 2;
+    const camTo = earthPivot.position.clone()
+      .addScaledVector(pointing.dir, -pointing.d)
+      .addScaledVector(pointing.perpDir, pointing.perp);
+    const tgtTo = earthPivot.position.clone().addScaledVector(pointing.dir, pointing.d + 200);
+    camera.position.lerpVectors(pointing.camFrom, camTo, k);
+    controls.target.lerpVectors(pointing.tgtFrom, tgtTo, k);
+    if (k === 1) pointing = null;
+    needsRender = true;
+  }
 
   if (paused) {
     accumulator = 0;
@@ -1154,6 +1296,7 @@ addEventListener('resize', () => {
 
 requestAnimationFrame(animate);
 refreshDayOfYear();
+window.__dbg = { camera, controls, POLARIS_POS, earthPivot };
 </script>
 </body>
 </html>
