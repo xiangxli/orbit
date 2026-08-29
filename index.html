@@ -83,6 +83,7 @@
     <label><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
     <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
     <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
+    <label><input type="checkbox" id="moon" checked /> <span id="lblMoon">Moon</span></label>
     <label><input type="checkbox" id="orbitPath" /> <span id="lblOrbitPath">Orbit path</span></label>
     <label><input type="checkbox" id="axis" /> <span id="lblAxis">Show Earth's tilt axis</span></label>
     <label><input type="checkbox" id="polaris" checked /> <span id="lblPolaris">Polaris</span></label>
@@ -265,6 +266,31 @@ earthPivot.add(earth);
 // 90 = north pole). Position set per-frame in updateObserverView().
 const observer = new THREE.Group();
 earth.add(observer);
+
+// ---- Moon (true scale) ----
+// Radius 1,737 km = 0.273 Earth radii; orbit 384,400 km = 60.3 Earth radii;
+// orbital plane tilted 5.1 deg from the ecliptic; 13.37 orbits per year;
+// tidally locked (always shows the same face to Earth).
+const MOON_RADIUS = 0.2727;
+const MOON_ORBIT = 60.3;
+const MOON_TILT = 5.1 * Math.PI / 180;
+const MOON_ORBITS_PER_YEAR = 365.25 / 27.32;
+
+const moonGroup = new THREE.Group();
+moonGroup.rotation.x = MOON_TILT;
+scene.add(moonGroup);
+
+const moon = new THREE.Mesh(
+  new THREE.SphereGeometry(MOON_RADIUS, 48, 48),
+  new THREE.MeshPhongMaterial({
+    map: loader.load('https://threejs.org/examples/textures/planets/moon_1024.jpg'),
+    emissive: new THREE.Color(0x0a0a0a),
+    shininess: 2,
+  })
+);
+moon.position.x = MOON_ORBIT;
+moon.rotation.y = Math.PI;   // same face always points at Earth (tidal lock)
+moonGroup.add(moon);
 
 // Clouds layer (rotates slightly faster)
 const cloudMat = new THREE.MeshPhongMaterial({
@@ -634,6 +660,7 @@ const $ = (id) => document.getElementById(id);
 $('annual').checked = false;
 $('pause').checked = false;
 $('clouds').checked = true;
+$('moon').checked = true;
 $('orbitPath').checked = false;
 $('axis').checked = false;
 $('polaris').checked = true;
@@ -659,6 +686,7 @@ const I18N = {
     annual: 'Annual view (fixed local time)',
     pause: 'Pause',
     clouds: 'Clouds layer',
+    moon: 'Moon',
     orbitPath: 'Orbit path',
     axis: 'Show Earth\u2019s tilt axis',
     polaris: 'Polaris',
@@ -688,6 +716,7 @@ const I18N = {
     annual: '\u5468\u5E74\u89C6\u89D2\uFF08\u56FA\u5B9A\u5F53\u5730\u65F6\u95F4\uFF09',
     pause: '\u6682\u505C',
     clouds: '\u4E91\u5C42',
+    moon: '\u6708\u7403',
     orbitPath: '\u8F68\u9053\u8DEF\u5F84',
     axis: '\u663E\u793A\u5730\u8F74\u503E\u89D2',
     polaris: '\u5317\u6781\u661F',
@@ -729,6 +758,7 @@ function applyLang() {
   set('lblAnnual', d.annual);
   set('lblPause', d.pause);
   set('lblClouds', d.clouds);
+  set('lblMoon', d.moon);
   set('lblOrbitPath', d.orbitPath);
   set('lblAxis', d.axis);
   set('lblPolaris', d.polaris);
@@ -762,6 +792,7 @@ hitRays.visible = missRays.visible = $('rays').checked;
 hintLine.visible = $('polarisLine').checked;
 pointerHint.visible = $('dipperLine').checked;
 orbitLine.visible = $('orbitPath').checked;
+moonGroup.visible = $('moon').checked;
 
 $('pause').addEventListener('change', (e) => {
   paused = e.target.checked;
@@ -769,6 +800,7 @@ $('pause').addEventListener('change', (e) => {
   needsRender = true;
 });
 $('clouds').addEventListener('change', (e) => { clouds.visible = cloudsOn = e.target.checked; requestRender(); });
+$('moon').addEventListener('change', (e) => { moonGroup.visible = e.target.checked; requestRender(); });
 $('orbitPath').addEventListener('change', (e) => { orbitLine.visible = e.target.checked; requestRender(); });
 $('axis').addEventListener('change', (e) => { axisGroup.visible = e.target.checked; requestRender(); });
 $('polaris').addEventListener('change', (e) => {
@@ -1038,6 +1070,11 @@ function updateScene(dt) {
   _rayDir.copy(earthPivot.position).normalize();
   updateRays(hitRays, RAY_HIT, true);
   updateRays(missRays, RAY_MISS, false);
+
+  // Moon: rides the Earth, orbiting 13.37x faster than the Earth's orbit
+  // (derived from the Earth's angle, so "Today" keeps them in sync)
+  moonGroup.position.copy(earthPivot.position);
+  moonGroup.rotation.y = angle * MOON_ORBITS_PER_YEAR;
 
   // Earth's own rotation (about its fixed, Polaris-pointing axis)
   const spin = spinRadPerSec();
