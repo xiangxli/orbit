@@ -110,6 +110,7 @@
     <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
     <div class="stat" id="todayRow" title="Click to go to today"><span id="lblToday">Today:</span> <span id="todayDate">-</span></div>
     <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
+    <div class="stat"><span id="lblHour">Hour of day:</span> <span id="hour">0.0</span> h</div>
     <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
     <div class="stat"><span id="lblMoonRate">Moon:</span> <span id="moonRate"></span></div>
     <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
@@ -727,6 +728,7 @@ const I18N = {
     lblGoTo: 'Go to:',
     lblNone: '\u2014 choose \u2014',
     lblDay: 'Day of year:',
+    lblHour: 'Hour of day:',
     lblSeason: { summer: 'NH Summer', winter: 'NH Winter', equinox: 'NH Equinox' },
     lblOrbit: 'Orbit:',
     lblRotation: 'Rotation:',
@@ -763,6 +765,7 @@ const I18N = {
     lblGoTo: '\u524D\u5F80\uFF1A',
     lblNone: '\u2014 \u9009\u62E9 \u2014',
     lblDay: '\u5E74\u4E2D\u65E5\u671F\uFF1A',
+    lblHour: '\u65F6\u523B\uFF1A',
     lblSeason: { summer: '\u5317\u534A\u7403\u590F\u5B63', winter: '\u5317\u534A\u7403\u51AC\u5B63', equinox: '\u5317\u534A\u7403\u6625\u79CB\u5206' },
     lblOrbit: '\u516C\u8F6C\uFF1A',
     lblRotation: '\u81EA\u8F6C\uFF1A',
@@ -810,6 +813,7 @@ function applyLang() {
   set('lblToday', d.lblToday);
   set('lblGoTo', d.lblGoTo);
   set('lblDay', d.lblDay);
+  set('lblHour', d.lblHour);
   document.getElementById('todayDate').textContent = new Intl.DateTimeFormat(
     lang === 'zh' ? 'zh-CN' : 'en-US',
     { dateStyle: 'full' }
@@ -1002,6 +1006,11 @@ function goToToday() {
   angle = ((demoDayFromToday() - 1) / DAYS_YEAR) * 2 * Math.PI;
   earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, Math.sin(angle) * ORBIT_RADIUS);
   moonAngle = angle * MOON_ORBITS_PER_YEAR * moonFactor();
+  // snap the spin so the hour of day matches the real current time
+  const now = new Date();
+  const realHour = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  earth.rotation.y = (realHour / 24) * 2 * Math.PI;
+  clouds.rotation.y = earth.rotation.y * 1.15;
   refreshDayOfYear();
   requestRender();
 }
@@ -1118,10 +1127,12 @@ const moonRateLabel = document.getElementById('moonRate');
 const fpsLabel = document.getElementById('fps');
 const dayLabel = document.getElementById('day');
 const seasonLabel = document.getElementById('season');
+const hourLabel = document.getElementById('hour');
 const _daySunDir = new THREE.Vector3();
 
 // Real day of year (1-365) + Northern-hemisphere season from the Sun's
-// declination. Day 1 = Jan 1; the orbit angle 0 sits at the Dec 21 solstice.
+// declination + hour of day from the Earth's spin (0.0 = midnight).
+// Day 1 = Jan 1; the orbit angle 0 sits at the Dec 21 solstice.
 function refreshDayOfYear() {
   const day = Math.floor(((angle / (2 * Math.PI)) * DAYS_YEAR + SOLSTICE_DAY - 1) % DAYS_YEAR) + 1;
   dayLabel.textContent = String(day);
@@ -1131,6 +1142,7 @@ function refreshDayOfYear() {
   ) * 180 / Math.PI;
   seasonLabel.textContent =
     decDeg > 8 ? t('lblSeason').summer : decDeg < -8 ? t('lblSeason').winter : t('lblSeason').equinox;
+  hourLabel.textContent = (((earth.rotation.y / (2 * Math.PI)) % 1 + 1) % 1 * 24).toFixed(1);
 }
 
 // ---- Animation loop (power & heat friendly) ----
