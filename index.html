@@ -79,14 +79,14 @@
     <label><span id="lblDayLen">Day length (s)</span>
       <input type="range" id="dayLen" min="0.5" max="60" value="3.4" step="0.1" />
     </label>
-    <label><span id="lblSpeed">Orbit speed (% real)</span>
-      <input type="range" id="speed" min="0" max="100" value="100" step="1" />
+    <label><span id="lblSpeed">Orbit speed (real = 100)</span>
+      <input type="range" id="speed" min="0" max="300" value="100" step="1" />
     </label>
-    <label><span id="lblRotSpeed">Rotation speed (% real)</span>
-      <input type="range" id="rotSpeed" min="0" max="100" value="100" step="1" />
+    <label><span id="lblRotSpeed">Rotation speed (real = 100)</span>
+      <input type="range" id="rotSpeed" min="0" max="300" value="100" step="1" />
     </label>
-    <label><span id="lblMoonSpeed">Moon speed (% real)</span>
-      <input type="range" id="moonSpeed" min="0" max="100" value="100" step="1" />
+    <label><span id="lblMoonSpeed">Moon speed (real = 100)</span>
+      <input type="range" id="moonSpeed" min="0" max="300" value="100" step="1" />
     </label>
     <label><span id="lblLat">Observer latitude (observer view)</span>
       <input type="range" id="lat" min="0" max="90" value="45" step="1" />
@@ -657,24 +657,20 @@ let angle = 0;
 let moonAngle = 0;
 
 // The DAY LENGTH is the master time scale (seconds per rotation, default
-// 3.4 s). Everything else derives from it at the real ratios, each with its
-// own "% of real" tweak slider (quadratic for fine control at the low end).
+// 3.4 s). Each other slider is an independent multiplier of its real rate
+// for that day: 100 = real, up to 300 = 3x real. Linear, so the system
+// always honors the slider values.
 function dayLenSec() {
   return Number($('dayLen').value);
 }
-// Orbit: real = 1 orbit per 365.25 days. Slider 0-100, default 100.
 function orbitDegPerSec() {
-  const pct = Math.pow(Number($('speed').value) / 100, 2);
-  return (360 / (dayLenSec() * 365.25)) * pct;
+  return (360 / (dayLenSec() * 365.25)) * (Number($('speed').value) / 100);
 }
-// Rotation: real = 1 spin per day. Slider 0-100, default 100.
 function spinRadPerSec() {
-  const pct = Math.pow(Number($('rotSpeed').value) / 100, 2);
-  return (2 * Math.PI / dayLenSec()) * pct;
+  return (2 * Math.PI / dayLenSec()) * (Number($('rotSpeed').value) / 100);
 }
-// Moon: real = 1 orbit per 27.32 days. Slider 0-100, default 100.
 function moonFactor() {
-  return Math.pow(Number($('moonSpeed').value) / 100, 2);
+  return Number($('moonSpeed').value) / 100;
 }
 
 const $ = (id) => document.getElementById(id);
@@ -708,9 +704,9 @@ const I18N = {
     title: 'EARTH \u2022 SUN SYSTEM',
     toggleHint: 'Show/hide controls',
     lblDayLen: 'Day length (s)',
-    orbitSpeed: 'Orbit speed (% real)',
-    rotSpeed: 'Rotation speed (% real)',
-    moonSpeed: 'Moon speed (% real)',
+    orbitSpeed: 'Orbit speed (real = 100)',
+    rotSpeed: 'Rotation speed (real = 100)',
+    moonSpeed: 'Moon speed (real = 100)',
     obsLat: 'Observer latitude (observer view)',
     annual: 'Annual view (fixed local time)',
     pause: 'Pause',
@@ -746,9 +742,9 @@ const I18N = {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
     toggleHint: '\u663E\u793A/\u9690\u85CF\u9762\u677F',
     lblDayLen: '\u4E00\u5929\u65F6\u957F\uFF08\u79D2\uFF09',
-    orbitSpeed: '\u516C\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
-    rotSpeed: '\u81EA\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
-    moonSpeed: '\u6708\u7403\u901F\u5EA6\uFF08\u5B9E\u9645\u6BD4\u4F8B %\uFF09',
+    orbitSpeed: '\u516C\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645=100\uFF09',
+    rotSpeed: '\u81EA\u8F6C\u901F\u5EA6\uFF08\u5B9E\u9645=100\uFF09',
+    moonSpeed: '\u6708\u7403\u901F\u5EA6\uFF08\u5B9E\u9645=100\uFF09',
     obsLat: '\u89C2\u6D4B\u7EAC\u5EA6\uFF08\u89C2\u6D4B\u89C6\u89D2\uFF09',
     annual: '\u5468\u5E74\u89C6\u89D2\uFF08\u56FA\u5B9A\u5F53\u5730\u65F6\u95F4\uFF09',
     pause: '\u6682\u505C',
@@ -1232,7 +1228,7 @@ function updateScene(dt) {
 
   angleLabel.innerHTML = ((angle * 180 / Math.PI) % 360).toFixed(1) + '&deg;';
   orbitRateLabel.innerHTML = orbitDegPerSec().toFixed(1) + '&deg;/s';
-  const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
+  const realRatio = Number($('rotSpeed').value) / 100;
   const spinRate = spinRadPerSec();
   const daySec = spinRate > 0 ? (2 * Math.PI / spinRate).toFixed(1) : '\u221E';
   spinRateLabel.textContent = t('spinRate')
