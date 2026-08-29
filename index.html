@@ -1033,34 +1033,30 @@ const STAR_CATALOG = [
   { id: 'yinyuan',  en: '\u9690\u5143 Yinyuan (traditional)', zh: '\u9690\u5143', pos: () => bdExtraPos[0].clone() },
 ];
 
-let pointing = null;              // camera fly-to animation state
+let pointing = null;              // (reserved) camera framing state
 const _pointDir = new THREE.Vector3();
 const _pointPerp = new THREE.Vector3();
 const _upY = new THREE.Vector3(0, 1, 0);
 const _upX = new THREE.Vector3(1, 0, 0);
 
-// Point at a star while keeping the Earth as the spatial reference (design
-// decision, see README): the camera keeps its current distance from the
-// Earth, flies to the Earth-star line with a small lateral offset, so the
-// star is centered and the Earth stays visible at the edge of the view.
+// Point at a star using the load-view framing: the Earth stays centered
+// with the chosen star beside it, exactly like the Sun appears on load.
+// The camera takes the same distance and lateral offset as the load view
+// (design decision, see README).
 function pointCameraAt(worldPos) {
   if (observerMode) setObserverMode(false);
-  const d = Math.max(3, camera.position.distanceTo(earthPivot.position));
   _pointDir.copy(worldPos).sub(earthPivot.position).normalize();
-  const thetaDeg = Math.max(8, Math.asin(EARTH_RADIUS / d) * 180 / Math.PI + 4);
-  const perp = d * Math.tan(thetaDeg * Math.PI / 180);
-  _pointPerp.crossVectors(_pointDir, _upY);
-  if (_pointPerp.lengthSq() < 1e-6) _pointPerp.crossVectors(_pointDir, _upX);
+  _pointPerp.crossVectors(_upY, _pointDir);   // sign matches the load view (object on the left)
+  if (_pointPerp.lengthSq() < 1e-6) _pointPerp.crossVectors(_upX, _pointDir);
   _pointPerp.normalize();
-  pointing = {
-    camFrom: camera.position.clone(),
-    tgtFrom: controls.target.clone(),
-    dir: _pointDir.clone(),
-    perpDir: _pointPerp.clone(),
-    perp,
-    d,
-    t: 0,
-  };
+  const e = earthPivot.position;
+  camera.position.set(
+    e.x - _pointDir.x * 11.5 + _pointPerp.x * 1.6,
+    e.y - _pointDir.y * 11.5 + _pointPerp.y * 1.6,
+    e.z - _pointDir.z * 11.5 + _pointPerp.z * 1.6
+  );
+  controls.target.set(e.x, e.y, e.z);
+  controls.update();
   requestRender();
 }
 
@@ -1179,9 +1175,8 @@ function updateScene(dt) {
     Math.sin(angle) * ORBIT_RADIUS
   );
 
-  if (!observerMode && !pointing) {
-    // Follow camera (relative view is preserved; drag still works as usual).
-    // Skipped while the look-at animation pins the target.
+  if (!observerMode) {
+    // Follow camera (relative view is preserved; drag still works as usual)
     _followDelta.copy(earthPivot.position).sub(prevEarthPos);
     camera.position.add(_followDelta);
     controls.target.add(_followDelta);
@@ -1243,22 +1238,6 @@ requestAnimationFrame(animate);
   // kept fresh while paused so resuming never injects a time jump.
   const elapsed = lastTick === 0 ? 0 : Math.min(now - lastTick, MAX_DT_MS);
   lastTick = now;
-
-  // Fly-to animation: ease the camera around the Earth to face the star.
-  // The target framing is recomputed each frame against the Earth's current
-  // position, so the moving planet can't leave the camera stranded.
-  if (pointing) {
-    pointing.t += elapsed / 900;   // ~0.9s ease
-    const k = pointing.t >= 1 ? 1 : (1 - Math.cos(pointing.t * Math.PI)) / 2;
-    const camTo = earthPivot.position.clone()
-      .addScaledVector(pointing.dir, -pointing.d)
-      .addScaledVector(pointing.perpDir, pointing.perp);
-    const tgtTo = earthPivot.position.clone().addScaledVector(pointing.dir, pointing.d + 200);
-    camera.position.lerpVectors(pointing.camFrom, camTo, k);
-    controls.target.lerpVectors(pointing.tgtFrom, tgtTo, k);
-    if (k === 1) pointing = null;
-    needsRender = true;
-  }
 
   if (paused) {
     accumulator = 0;

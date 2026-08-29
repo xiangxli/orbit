@@ -16,24 +16,20 @@ A true-scale interactive demonstration of the Earth orbiting the Sun, built with
 
 ### Star catalog: where the camera is based (2026)
 
-When a star is chosen from the "Go to:" catalog, the camera framing follows
-**Option 2 — Earth-relative, camera orbits**:
+When a star is chosen from the "Go to:" catalog, the camera uses the **load-view
+framing** — exactly the composition the page opens with (Earth centered, the Sun
+beside it on the left):
 
-- The camera keeps its **current distance from the Earth** (the user's zoom is preserved).
-- It flies to the **Earth–star line with a small lateral offset**, so the chosen
-  star is centered in the view and the **Earth stays visible at the edge**
-  (the same composition style as the default Sun framing, generalized to any object).
-- The fly-to animation recomputes the framing against the Earth's *current*
-  position each frame, so the moving planet can't leave the camera stranded.
+- The camera is placed at the same distance (11.5 units) and lateral offset as
+  the load view, on the anti-star side of the Earth.
+- The **Earth stays centered** and the chosen star appears beside it, in the same
+  relative position the Sun occupies on load — as if you had rotated the view
+  toward the star (done directly, without animating the rotation).
+- The perpendicular is computed in 3D (with a horizontal fallback), so stars high
+  in the sky (Polaris, the Dipper) are framed beside the Earth too.
 
-Rejected alternatives:
-- **Option 1 (star-centered):** camera rotates in place; the star is centered but
-  the Earth leaves the frame (no spatial context).
-- **Option 3 (earth-centered):** Earth stays centered and the star appears at the
-  view's edge — the star is never truly "pointed at".
-
-Rationale: the demo's identity is Earth-relative, and pointing at a star is only
-useful when you can still see *where* that star is relative to Earth.
+This keeps the Earth-relative identity: pointing at a star always shows where
+that star is relative to Earth.
 
 ## Notes: sidereal day vs solar day, and the 365 vs 366 count
 
