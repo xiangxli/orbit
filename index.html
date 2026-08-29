@@ -732,7 +732,7 @@ const I18N = {
     lblSeason: { summer: 'NH Summer', winter: 'NH Winter', equinox: 'NH Equinox' },
     lblOrbit: 'Orbit:',
     lblRotation: 'Rotation:',
-    spinRate: '{rev} rev/min \u00B7 {n}\u00D7 per orbit',
+    spinRate: '{rev} rev/min \u00B7 {n}\u00D7 per orbit \u00B7 {d} s/day',
     lblMoonRate: 'Moon:',
     moonRate: '{sp}\u00B0/s \u00B7 {n}\u00D7 per orbit',
     lblFps: 'Render rate:',
@@ -769,7 +769,7 @@ const I18N = {
     lblSeason: { summer: '\u5317\u534A\u7403\u590F\u5B63', winter: '\u5317\u534A\u7403\u51AC\u5B63', equinox: '\u5317\u534A\u7403\u6625\u79CB\u5206' },
     lblOrbit: '\u516C\u8F6C\uFF1A',
     lblRotation: '\u81EA\u8F6C\uFF1A',
-    spinRate: '{rev} \u8F6C/\u5206 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
+    spinRate: '{rev} \u8F6C/\u5206 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7 \u00B7 \u6BCF\u5929 {d} \u79D2',
     lblMoonRate: '\u6708\u7403\uFF1A',
     moonRate: '{sp}\u00B0/\u79D2 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
     lblFps: '\u6E32\u67D3\u5E27\u7387\uFF1A',
@@ -1224,9 +1224,12 @@ function updateScene(dt) {
   angleLabel.innerHTML = ((angle * 180 / Math.PI) % 360).toFixed(1) + '&deg;';
   orbitRateLabel.innerHTML = orbitDegPerSec().toFixed(1) + '&deg;/s';
   const realRatio = Math.pow(Number($('rotSpeed').value) / 100, 2);
+  const spinRate = spinRadPerSec();
+  const daySec = spinRate > 0 ? (2 * Math.PI / spinRate).toFixed(1) : '\u221E';
   spinRateLabel.textContent = t('spinRate')
-    .replace('{rev}', (spinRadPerSec() * 60 / (2 * Math.PI)).toFixed(0))
-    .replace('{n}', (365.25 * realRatio).toFixed(1));
+    .replace('{rev}', (spinRate * 60 / (2 * Math.PI)).toFixed(0))
+    .replace('{n}', (365.25 * realRatio).toFixed(1))
+    .replace('{d}', daySec);
   moonRateLabel.textContent = t('moonRate')
     .replace('{sp}', (orbitDegPerSec() * MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1))
     .replace('{n}', (MOON_ORBITS_PER_YEAR * moonFactor()).toFixed(1));
