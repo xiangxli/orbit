@@ -1033,7 +1033,7 @@ const STAR_CATALOG = [
   { id: 'yinyuan',  en: '\u9690\u5143 Yinyuan (traditional)', zh: '\u9690\u5143', pos: () => bdExtraPos[0].clone() },
 ];
 
-let pointing = null;              // camera transition animation state
+let pointing = null;              // (reserved) camera framing state
 const _pointDir = new THREE.Vector3();
 const _pointPerp = new THREE.Vector3();
 const _upY = new THREE.Vector3(0, 1, 0);
@@ -1041,21 +1041,21 @@ const _upX = new THREE.Vector3(1, 0, 0);
 
 // Point at a star using the load-view framing: the Earth stays centered
 // with the chosen star beside it, exactly like the Sun appears on load.
-// The camera glides from its current position to that framing (~1.1s), and
-// the framing is recomputed against the Earth's moving position each frame.
+// The camera takes the same distance and lateral offset as the load view.
 function pointCameraAt(worldPos) {
   if (observerMode) setObserverMode(false);
   _pointDir.copy(worldPos).sub(earthPivot.position).normalize();
   _pointPerp.crossVectors(_upY, _pointDir);   // sign matches the load view (object on the left)
   if (_pointPerp.lengthSq() < 1e-6) _pointPerp.crossVectors(_upX, _pointDir);
   _pointPerp.normalize();
-  pointing = {
-    camFrom: camera.position.clone(),
-    tgtFrom: controls.target.clone(),
-    dir: _pointDir.clone(),
-    perpDir: _pointPerp.clone(),
-    t: 0,
-  };
+  const e = earthPivot.position;
+  camera.position.set(
+    e.x - _pointDir.x * 11.5 + _pointPerp.x * 1.6,
+    e.y - _pointDir.y * 11.5 + _pointPerp.y * 1.6,
+    e.z - _pointDir.z * 11.5 + _pointPerp.z * 1.6
+  );
+  controls.target.set(e.x, e.y, e.z);
+  controls.update();
   requestRender();
 }
 
@@ -1174,9 +1174,8 @@ function updateScene(dt) {
     Math.sin(angle) * ORBIT_RADIUS
   );
 
-  if (!observerMode && !pointing) {
-    // Follow camera (relative view is preserved; drag still works as usual).
-    // Paused during the star-catalog transition so the flight stays smooth.
+  if (!observerMode) {
+    // Follow camera (relative view is preserved; drag still works as usual)
     _followDelta.copy(earthPivot.position).sub(prevEarthPos);
     camera.position.add(_followDelta);
     controls.target.add(_followDelta);
@@ -1238,21 +1237,6 @@ requestAnimationFrame(animate);
   // kept fresh while paused so resuming never injects a time jump.
   const elapsed = lastTick === 0 ? 0 : Math.min(now - lastTick, MAX_DT_MS);
   lastTick = now;
-
-  // Star-catalog transition: glide the camera to the load-view framing.
-  // Recomputed each frame against the Earth's current position.
-  if (pointing) {
-    pointing.t += elapsed / 1100;   // ~1.1s ease
-    const k = pointing.t >= 1 ? 1 : (1 - Math.cos(pointing.t * Math.PI)) / 2;
-    const e = earthPivot.position;
-    const camTo = e.clone()
-      .addScaledVector(pointing.dir, -11.5)
-      .addScaledVector(pointing.perpDir, 1.6);
-    camera.position.lerpVectors(pointing.camFrom, camTo, k);
-    controls.target.lerpVectors(pointing.tgtFrom, e, k);
-    if (k === 1) pointing = null;
-    needsRender = true;
-  }
 
   if (paused) {
     accumulator = 0;
