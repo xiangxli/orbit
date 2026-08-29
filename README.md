@@ -14,14 +14,18 @@ A true-scale interactive demonstration of the Earth orbiting the Sun, built with
 
 ## Design decisions
 
-### Star catalog: pointing the view (2026)
+### Star catalog: where the camera is based (2026)
 
-Clicking a star in the "Go to:" catalog simply **rotates the view toward it** —
-the same result as the user dragging the camera manually:
+Clicking a star in the "Go to:" catalog uses the **load-view framing** — the
+composition the page opens with (Earth centered, the Sun beside it on the left):
 
-- The camera stays where it is; the look direction turns so the star is centered.
-- The camera's distance from its target is preserved (the user's zoom is kept).
-- Done directly, no animation.
+- The camera is placed at the same distance (11.5 units) and lateral offset as
+  the load view, on the anti-star side of the Earth.
+- The **Earth stays centered** and the chosen star appears beside it, in the same
+  relative position the Sun occupies on load — as if you had rotated the view
+  toward the star (done directly, without animating the rotation).
+- The perpendicular is computed in 3D (with a horizontal fallback), so stars high
+  in the sky (Polaris, the Dipper) are framed beside the Earth too.
 
 ## Notes: sidereal day vs solar day, and the 365 vs 366 count
 
