@@ -175,10 +175,10 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 1.5;
 controls.maxDistance = 120000;
-// Allow the camera to loop fully around the Earth: the polar angle wraps
-// through 360° (over the top, under the bottom) in one continuous drag.
-controls.minPolarAngle = -2 * Math.PI;
-controls.maxPolarAngle = 2 * Math.PI;
+// Rotation is handled by our own orbit controller (below) so the camera can
+// loop a full 360° vertically; OrbitControls provides zoom only.
+controls.enablePan = false;
+controls.enableRotate = true;
 controls.target.set(ORBIT_RADIUS, 0, 0);
 
 // ---- Sun ----
@@ -969,8 +969,8 @@ function setObserverMode(on) {
 }
 $('observer').addEventListener('click', () => setObserverMode(!observerMode));
 
-// Wheel + pinch zoom in observer view: telephoto via FOV (narrowing the
-// field magnifies the sky -- stars are at infinite distance).
+// Wheel + pinch zoom in observer view: telephoto via FOV (the free view's
+// zoom is handled by OrbitControls).
 let pinchDist = null;
 renderer.domElement.addEventListener('wheel', (e) => {
   if (!observerMode) return;
@@ -1002,8 +1002,9 @@ function frameDefault() {
   const px = -p.z / d;
   const pz = p.x / d;
   camera.position.set(p.x + (p.x / d) * 11.5 + px * 1.6, p.y, p.z + (p.z / d) * 11.5 + pz * 1.6);
+  camera.up.set(0, 1, 0);
   controls.target.set(p.x, p.y, p.z);
-  controls.update();
+  camera.lookAt(controls.target);
 }
 
 // ---- Today: click the date row to jump the demo state to the real date ----
@@ -1072,8 +1073,9 @@ function pointCameraAt(worldPos) {
     e.y - _pointDir.y * 11.5 + _pointPerp.y * 1.6,
     e.z - _pointDir.z * 11.5 + _pointPerp.z * 1.6
   );
+  camera.up.set(0, 1, 0);
   controls.target.set(e.x, e.y, e.z);
-  controls.update();
+  camera.lookAt(controls.target);
   requestRender();
 }
 
@@ -1300,5 +1302,6 @@ addEventListener('resize', () => {
 requestAnimationFrame(animate);
 refreshDayOfYear();
 </script>
+
 </body>
 </html>
