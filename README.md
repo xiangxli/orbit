@@ -26,13 +26,21 @@ calendar clock (UT Julian Day) that drives everything:
 - **Place**: a preset list (historical Chinese capitals first), lat/lon fields, or click
   the globe in the free view.
 - **Sky**: 5,159 stars (HYG, V ≤ 6.0 plus every star on a constellation line), colours
-  from B−V, proper motion applied; 318 Chinese xingguan with lines and names; the Moon at
-  its true position and distance (phase from the lighting); the Sun.
+  from B−V, halos on the bright ones, proper motion applied; the Milky Way from NASA's
+  Deep Star Maps (moonlight and twilight dim it); 318 Chinese xingguan with lines, the 28
+  lunar mansions named in gold and the smaller asterisms named once you zoom in; the Moon
+  at its true position and distance (phase from the lighting); the Sun.
+- **Exploring**: a year slider (3000 BC to AD 3000) and ±1 month / year / century steps
+  to watch precession; a ticking clock with play/pause; click any star for its names,
+  magnitude, xingguan and altitude/azimuth; a "Go to" list (Sun, Moon, pole, the 28
+  mansions, major asterisms, bright stars) that turns the view; arrow keys look around,
+  +/− zoom.
 - **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
   only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
   aberration or refraction (all < 1′ except refraction near the horizon).
-- **Observer view**: horizon, cardinal points, drag to look around, wheel/pinch to zoom.
-  Stars fade and the sky turns blue by day.
+- **Observer view**: opens facing south (面南背北: east on your left, west on your right,
+  the ecliptic in front of you), with horizon and cardinal points; drag to look around,
+  wheel/pinch to zoom. Stars fade and the sky turns blue by day.
 - Readouts: local sidereal time, Sun altitude/azimuth, Moon phase, and the epoch's pole
   star (nearest star brighter than V 4.5 to the pole of date).
 
@@ -44,7 +52,7 @@ The demo's speed sliders are disabled in real-sky mode (they would break the cal
 |---|---|
 | `index.html` | The whole app (Three.js scene, HUD, real-sky mode) |
 | `astro.js` | Pure astronomy: calendars/JD, ΔT, sidereal time, obliquity, precession, Sun, Moon, coordinate transforms. Classic script (browser) + CommonJS (node) |
-| `stars.js`, `constellations.js` | Generated data (see `tools/build_data.py`) |
+| `stars.js`, `constellations.js`, `milkyway.js` | Generated data (see `tools/build_data.py`); the Milky Way is a base64 JPEG so WebGL can use it from `file://` |
 | `test/` | `node --test test/` — Meeus worked examples and historical sanity checks |
 | `PLAN.md` | Design decisions and frame conventions for the real-sky mode. Read it before touching the coordinate code |
 
@@ -57,6 +65,8 @@ from `file://`. Three.js itself comes from a CDN.
 - Chinese constellations and star names: [Stellarium sky culture "chinese"](https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese)
   (lines and names based on Yi Shitong's *Chinese and Western Contrast Star Chart and Catalogue 1950.0*
   and Sun Xiaochun & Kistemaker's *The Chinese Sky during the Han*) — CC BY-SA.
+- Milky Way: NASA/Goddard Scientific Visualization Studio, [Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851)
+  (Ernie Wright), `milkyway_2020_4k.exr` converted to sRGB — public domain.
 - Algorithms: Jean Meeus, *Astronomical Algorithms*, 2nd ed.; ΔT polynomials from Espenak & Meeus.
 
 Regenerate the data files with `python3 tools/build_data.py` after downloading the sources

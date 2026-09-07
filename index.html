@@ -75,7 +75,18 @@
     border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 4px; cursor: pointer;
   }
   .row button:hover { background: rgba(255, 210, 122, 0.25); }
+  .row input[type="range"] { flex: 1; accent-color: #ffd27a; height: 4px; }
   #hudBody { max-height: calc(100vh - 80px); overflow-y: auto; }
+  #starInfo {
+    position: absolute; right: 16px; bottom: 16px; display: none;
+    background: rgba(10, 14, 24, 0.78); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px;
+    padding: 12px 14px; color: #e8eefc; font-size: 12px; line-height: 1.6;
+    min-width: 180px; max-width: 280px; user-select: none;
+  }
+  #starInfo.show { display: block; }
+  #starInfo b { font-size: 16px; color: #ffe9b0; display: block; margin-bottom: 2px; }
+  #starInfo .dim { color: #7f8db0; }
   @media (max-width: 640px) {
     #hud { top: 8px; left: 8px; right: auto; max-width: calc(100vw - 16px); }
     #hudToggle { width: 36px; height: 36px; }
@@ -114,12 +125,28 @@
       <div class="row">
         <button id="rNow">Now</button><button id="rM1d">&minus;1d</button><button id="rM1h">&minus;1h</button><button id="rP1h">+1h</button><button id="rP1d">+1d</button>
       </div>
+      <div class="row"><span id="lblYear">Year</span>
+        <input type="range" id="rYearSlider" min="-3000" max="3000" step="1" value="2026" />
+      </div>
+      <div class="row">
+        <button id="rM100y">&minus;100y</button><button id="rM1y">&minus;1y</button><button id="rM1m">&minus;1m</button>
+      </div>
+      <div class="row">
+        <button id="rP1m">+1m</button><button id="rP1y">+1y</button><button id="rP100y">+100y</button>
+      </div>
+      <div class="row">
+        <button id="rPlay" style="flex: 0 0 auto; min-width: 64px;">Pause</button>
+        <span id="clockVal" style="flex: 1; color: #ffd27a; font-variant-numeric: tabular-nums;"></span>
+      </div>
       <div class="row"><span id="lblPlace">Place</span>
         <select id="rCity" class="wide"></select>
       </div>
       <div class="row"><span id="lblLatLon">Lat / Lon</span>
         <input type="number" id="rLat" class="wide" min="-90" max="90" step="0.01" />
         <input type="number" id="rLon" class="wide" min="-180" max="180" step="0.01" />
+      </div>
+      <div class="row"><span id="lblGoto">Go to</span>
+        <select id="rGoto" class="wide"></select>
       </div>
       <label><span id="lblRate">Time rate</span>
         <input type="range" id="rRate" min="0" max="140" value="0" step="1" />
@@ -131,6 +158,7 @@
       <div class="stat"><span id="lblSunAlt">Sun alt / az:</span> <span id="sunAltVal">-</span></div>
       <div class="stat"><span id="lblMoonPhase">Moon:</span> <span id="moonPhaseVal">-</span></div>
       <div class="stat"><span id="lblPole">Pole star:</span> <span id="poleVal">-</span></div>
+      <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
       <div class="stat" id="pickHint">Free view: click the globe to pick a place</div>
     </div>
     <label class="demoOnly"><span id="lblDayLen">Day length (s)</span>
@@ -162,7 +190,7 @@
     <label><input type="checkbox" id="rays" /> <span id="lblRays">Sun light rays</span></label>
     <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
     <label><input type="checkbox" id="starfield" /> <span id="lblStarfield">Background stars</span></label>
-    <label><span id="lblGoTo">Go to:</span>
+    <label class="demoOnly"><span id="lblGoTo">Go to:</span>
       <select id="starList"></select>
     </label>
     <button id="observer"><span id="lblObserver">Observer view</span></button>
@@ -177,10 +205,13 @@
   </div>
 </div>
 
+<div id="starInfo"></div>
+
 <!-- Classic scripts (not modules) so the page still works from file:// -->
 <script src="astro.js"></script>
 <script src="stars.js"></script>
 <script src="constellations.js"></script>
+<script src="milkyway.js"></script>
 
 <script type="importmap">
 {
@@ -836,6 +867,14 @@ const I18N = {
     calGregorian: 'Gregorian',
     moonPhase: '{p}% lit \u00B7 {e}\u00B0 from Sun',
     poleStar: '{name}, {d}\u00B0 from the pole',
+    lblYear: 'Year',
+    stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
+    pause2: 'Pause', resume: 'Resume',
+    lblGoto: 'Go to',
+    gotoSun: 'Sun', gotoMoon: 'Moon', gotoPole: 'Celestial pole (of date)',
+    grpXiu: '28 lunar mansions', grpCon: 'Asterisms', grpStars: 'Bright stars',
+    lblView: 'View az / alt / fov:',
+    infoMag: 'mag', infoCon: 'in', infoAltAz: 'alt / az', belowHorizon: 'below the horizon',
   },
   zh: {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
@@ -898,6 +937,14 @@ const I18N = {
     calGregorian: '\u516C\u5386',
     moonPhase: '\u7167\u4EAE {p}% \u00B7 \u8DDD\u65E5 {e}\u00B0',
     poleStar: '{name}\uFF0C\u8DDD\u6781 {d}\u00B0',
+    lblYear: '\u5E74\u4EFD',
+    stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
+    pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
+    lblGoto: '\u524D\u5F80',
+    gotoSun: '\u592A\u9633', gotoMoon: '\u6708\u4EAE', gotoPole: '\u5929\u6781\uFF08\u5F53\u4EE3\uFF09',
+    grpXiu: '\u4E8C\u5341\u516B\u5BBF', grpCon: '\u661F\u5B98', grpStars: '\u4EAE\u661F',
+    lblView: '\u89C6\u7EBF \u65B9\u4F4D / \u9AD8\u5EA6 / \u89C6\u573A\uFF1A',
+    infoMag: '\u661F\u7B49', infoCon: '\u5C5E', infoAltAz: '\u9AD8\u5EA6 / \u65B9\u4F4D', belowHorizon: '\u5728\u5730\u5E73\u7EBF\u4E0B',
   },
 };
 
@@ -971,6 +1018,11 @@ function applyLang() {
   calOpts[0].textContent = d.calAuto;
   calOpts[1].textContent = d.calJulian;
   calOpts[2].textContent = d.calGregorian;
+  set('lblYear', d.lblYear);
+  set('rM100y', d.stepM100y); set('rM1y', d.stepM1y); set('rM1m', d.stepM1m);
+  set('rP1m', d.stepP1m); set('rP1y', d.stepP1y); set('rP100y', d.stepP100y);
+  set('lblGoto', d.lblGoto);
+  set('lblView', d.lblView);
 }
 applyLang();
 
@@ -1095,16 +1147,17 @@ function setObserverMode(on) {
     savedTargetOffset = controls.target.clone().sub(earthPivot.position);
     savedFov = camera.fov;
     savedUp = camera.up.clone();
-    obsFov = initialObserverFov();
+    obsFov = real.on ? REAL_FOV : initialObserverFov();
     camera.fov = obsFov;
     camera.updateProjectionMatrix();
     controls.enabled = false;
-    real.az = 0;              // real-sky mode: start looking north, mid-sky
-    real.alt = 30;
+    real.az = 180;            // real-sky mode: face south (面南背北: east on the
+    real.alt = 40;            // left, west on the right), where the ecliptic runs
   } else {
     horizonGroup.visible = false;
     earthPivot.visible = true;
     renderer.setClearColor(0x000000);
+    hideStarInfo();
     camera.position.copy(earthPivot.position).add(savedCamOffset);
     controls.target.copy(earthPivot.position).add(savedTargetOffset);
     camera.up.copy(savedUp);
@@ -1358,7 +1411,7 @@ const real = {
   lat: 34.34, lon: 108.94,                  // Xi'an
   basis: 'lmt',                             // 'lmt' local mean solar time | 'utc'
   cal: 'auto',
-  az: 0, alt: 30,                           // observer look direction (deg)
+  az: 180, alt: 40,                         // observer look direction (deg): south, mid-sky
 };
 
 // Historical capitals first, then a few world cities. [id, zh, en, lat, lon]
@@ -1388,6 +1441,17 @@ const CITIES = [
   ['newyork', '纽约', 'New York', 40.71, -74.01],
   ['sydney', '悉尼', 'Sydney', -33.87, 151.21],
 ];
+
+const REAL_FOV = 70;   // observer view in real-sky mode: a natural "look up" field
+const MILKY_GAIN = 0.4; // the NASA map is poster-bright; the night sky wants a soft band
+// The 28 lunar mansions in order (east, north, west, south quadrants)
+const XIU = ['角宿', '亢宿', '氐宿', '房宿', '心宿', '尾宿', '箕宿',
+             '斗宿', '牛宿', '女宿', '虚宿', '危宿', '室宿', '壁宿',
+             '奎宿', '娄宿', '胃宿', '昴宿', '毕宿', '觜宿', '参宿',
+             '井宿', '鬼宿', '柳宿', '星宿', '张宿', '翼宿', '轸宿'];
+const MAJOR_CON = new Set([...XIU, '北斗', '北极', '紫微左垣', '紫微右垣', '太微左垣', '太微右垣', '天市左垣', '天市右垣']);
+// Bright stars offered in the "Go to" list (HIP numbers; names come from the catalog)
+const GOTO_STARS = [32349, 91262, 69673, 80763, 30438, 102098, 97649, 27989, 21421, 49669, 65474, 24608, 37279, 11767];
 
 // ---- Date fields <-> JD ----
 function localOffsetDays() { return real.basis === 'lmt' ? real.lon / 15 / 24 : 0; }
@@ -1447,12 +1511,14 @@ function bvColor(bv) {
 for (let i = 0; i < N_STARS; i++) {
   const [hip, , , mag, ci] = STARS.stars[i];
   if (hip) hipIndex.set(hip, i);
-  const bright = Math.min(1, Math.max(0.12, Math.pow(10, -0.2 * (mag - 1))));
+  // Steep magnitude scale: a 0-mag star is a big bright core, 6th-mag a
+  // small dim point; the Milky Way texture carries the fainter background.
+  const bright = Math.min(1, Math.max(0.28, Math.pow(10, -0.25 * (mag - 1.5))));
   const c = bvColor(ci);
   starCol[i * 3] = c[0] * bright;
   starCol[i * 3 + 1] = c[1] * bright;
   starCol[i * 3 + 2] = c[2] * bright;
-  starSize[i] = Math.min(14, Math.max(1.8, 9 * Math.pow(10, -0.16 * mag)));
+  starSize[i] = Math.min(14, Math.max(1.5, 1.5 + 7 * Math.pow(10, -0.2 * mag)));
 }
 
 const starGeo = new THREE.BufferGeometry();
@@ -1498,6 +1564,82 @@ const starPoints = new THREE.Points(starGeo, starMat);
 starPoints.frustumCulled = false;
 skyGroup.add(starPoints);
 
+// Halos: a second, wider and softer point layer for the bright stars
+const haloIdx = [];
+for (let i = 0; i < N_STARS; i++) if (STARS.stars[i][3] <= 2.5) haloIdx.push(i);
+const haloPos = new Float32Array(haloIdx.length * 3);
+const haloCol = new Float32Array(haloIdx.length * 3);
+const haloSize = new Float32Array(haloIdx.length);
+haloIdx.forEach((i, k) => {
+  const mag = STARS.stars[i][3];
+  const c = bvColor(STARS.stars[i][4]);
+  const w = Math.min(1, Math.max(0.35, Math.pow(10, -0.3 * (mag - 0.5))));
+  haloCol[k * 3] = c[0] * w;
+  haloCol[k * 3 + 1] = c[1] * w;
+  haloCol[k * 3 + 2] = c[2] * w;
+  haloSize[k] = Math.min(64, 26 * Math.pow(10, -0.2 * mag));
+});
+const haloGeo = new THREE.BufferGeometry();
+haloGeo.setAttribute('position', new THREE.BufferAttribute(haloPos, 3));
+haloGeo.setAttribute('color', new THREE.BufferAttribute(haloCol, 3));
+haloGeo.setAttribute('size', new THREE.BufferAttribute(haloSize, 1));
+const haloMat = new THREE.ShaderMaterial({
+  uniforms: { uScale: { value: Math.min(devicePixelRatio, 2) }, uOpacity: { value: 1 } },
+  vertexShader: starMat.vertexShader,
+  fragmentShader: `
+    uniform float uOpacity;
+    varying vec3 vColor;
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    void main() {
+      #include <logdepthbuf_fragment>
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      if (d > 1.0) discard;
+      float a = pow(1.0 - d, 2.2) * 0.45;
+      gl_FragColor = vec4(vColor, a * uOpacity);
+    }`,
+  vertexColors: true,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const haloPoints = new THREE.Points(haloGeo, haloMat);
+haloPoints.frustumCulled = false;
+skyGroup.add(haloPoints);
+
+// ---- Milky Way background (NASA SVS "Deep Star Maps 2020", public domain) ----
+// Plate carrée in J2000 equatorial coordinates, centred on RA 0h with RA
+// growing to the LEFT (drawn as seen from inside). three.js wraps u
+// counterclockwise seen from +Y, which from inside puts RA to the right, so
+// the texture is mirrored in u. Mesh local frame: X = RA 0, Y = north
+// celestial pole, Z = RA −90°. Additive, so the daytime sky colour shows through.
+const milkyTex = new THREE.Texture();
+milkyTex.wrapS = THREE.RepeatWrapping;
+milkyTex.repeat.x = -1;
+milkyTex.colorSpace = THREE.SRGBColorSpace;
+const milkyMat = new THREE.MeshBasicMaterial({
+  map: milkyTex, side: THREE.BackSide, transparent: true, opacity: 1,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+const milkyWay = new THREE.Mesh(new THREE.SphereGeometry(R_SKY * 1.05, 64, 32), milkyMat);
+milkyWay.frustumCulled = false;
+milkyWay.renderOrder = -1;
+milkyWay.visible = false;
+milkyWay.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+  toScene([1, 0, 0]), toScene([0, 0, 1]), toScene([0, -1, 0])
+));
+skyGroup.add(milkyWay);
+if (window.MILKYWAY_DATA_URL) {
+  const img = new Image();
+  img.onload = () => {
+    milkyTex.image = img;
+    milkyTex.needsUpdate = true;
+    milkyWay.visible = true;
+    requestRender();
+  };
+  img.src = window.MILKYWAY_DATA_URL;
+}
+
 // Xingguan lines: pairs of star indices, positions copied from the star buffer
 const lineIdx = [];
 for (const c of CONS) {
@@ -1534,19 +1676,49 @@ function makeSmallLabel(text, color = '#cfe0ff') {
 // moves a centroid by far less than the label height)
 const conLabels = new THREE.Group();
 skyGroup.add(conLabels);
+const conCentroid = new Map();   // xingguan name -> unit vector (scene frame)
+const hipCon = new Map();        // HIP -> first xingguan whose lines use it
 const _cen = new THREE.Vector3();
 for (const c of CONS) {
   if (!c.zh) continue;
   const ids = new Set();
-  for (const seg of c.lines) for (const h of seg) { const i = hipIndex.get(h); if (i !== undefined) ids.add(i); }
+  for (const seg of c.lines) for (const h of seg) {
+    const i = hipIndex.get(h);
+    if (i !== undefined) { ids.add(i); if (!hipCon.has(h)) hipCon.set(h, c.zh); }
+  }
   if (!ids.size) continue;
   _cen.set(0, 0, 0);
   for (const i of ids) { const s = STARS.stars[i]; _cen.add(toScene(Astro.sphToVec(s[1], s[2]), _tmpV)); }
   _cen.normalize();
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(c.zh), transparent: true, depthWrite: false, opacity: 0.9 }));
+  conCentroid.set(c.zh, _cen.clone());
+  // Lunar mansions in gold and always shown; the other asterisms only when zoomed in.
+  const major = MAJOR_CON.has(c.zh);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeSmallLabel(c.zh, XIU.includes(c.zh) ? '#ffe0a8' : '#cfe0ff'),
+    transparent: true, depthWrite: false, opacity: major ? 0.95 : 0.7,
+  }));
   sp.position.copy(_cen).multiplyScalar(R_SKY * 0.98);
+  sp.userData.major = major;
   conLabels.add(sp);
 }
+
+// Selection ring for the clicked star
+function makeRingTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = '#ffe9b0';
+  ctx.lineWidth = 3;
+  ctx.shadowColor = 'rgba(255, 233, 176, 0.8)';
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  ctx.arc(32, 32, 24, 0, Math.PI * 2);
+  ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const selMarker = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeRingTexture(), transparent: true, depthWrite: false, depthTest: false }));
+selMarker.visible = false;
+skyGroup.add(selMarker);
 
 // Star positions for an epoch: J2000 + proper motion. Rebuilt when the
 // simulated date drifts more than 5 years from the last build.
@@ -1569,6 +1741,12 @@ function buildStarPositions(jdTT) {
     linePos[k * 3 + 2] = starPos[i + 2];
   }
   lineGeo.attributes.position.needsUpdate = true;
+  haloIdx.forEach((i, k) => {
+    haloPos[k * 3] = starPos[i * 3];
+    haloPos[k * 3 + 1] = starPos[i * 3 + 1];
+    haloPos[k * 3 + 2] = starPos[i * 3 + 2];
+  });
+  haloGeo.attributes.position.needsUpdate = true;
   starEpochJd = jdTT;
 }
 
@@ -1608,9 +1786,15 @@ function updateLabelScale() {
   if (camera.fov === labelFov) return;
   labelFov = camera.fov;
   const h = R_SKY * Math.tan(THREE.MathUtils.degToRad(1.3 * camera.fov / 60));
-  for (const sp of conLabels.children) sp.scale.set(h * 4, h, 1);
+  const showMinor = camera.fov <= 45;   // small asterism names only when zoomed in
+  for (const sp of conLabels.children) {
+    const k = sp.userData.major ? 1.15 : 1;
+    sp.scale.set(h * 4 * k, h * k, 1);
+    sp.visible = sp.userData.major || showMinor;
+  }
   const hc = h * 1.6;
   for (const sp of cardinalLabels) sp.scale.set(hc * 4, hc, 1);
+  selMarker.scale.set(h * 1.4, h * 1.4, 1);
 }
 
 // Sky sphere rides the camera: zero parallax, stars at infinity.
@@ -1638,6 +1822,7 @@ const _pivotM = new THREE.Matrix4();
 const _skyCol = new THREE.Color();
 let sunAltDeg = -90;
 let lastReadout = 0;
+let lastNight = -1;
 
 function setObserverPosition() {
   const la = THREE.MathUtils.degToRad(real.lat), lo = THREE.MathUtils.degToRad(real.lon);
@@ -1684,7 +1869,19 @@ function applyRealState() {
   sunAltDeg = Math.asin(THREE.MathUtils.clamp(_tmpV.dot(_sunDir), -1, 1)) * 180 / Math.PI;
   const night = observerMode ? THREE.MathUtils.clamp(1 - (sunAltDeg + 18) / 24, 0.06, 1) : 1;
   starMat.uniforms.uOpacity.value = night;
+  haloMat.uniforms.uOpacity.value = night;
   lineMat.opacity = 0.45 * night;
+  // Moonlight washes out the Milky Way when a bright Moon is up (_tmpV = local up)
+  const moonAlt = Math.asin(THREE.MathUtils.clamp(_tmpV.dot(_moonDir), -1, 1)) * 180 / Math.PI;
+  const moonFrac = (1 - Math.cos(_sunDir.angleTo(_moonDir))) / 2;
+  const moonGlare = moonAlt > 0 ? moonFrac * THREE.MathUtils.smoothstep(moonAlt, 0, 10) : 0;
+  // The Milky Way needs a dark sky: gone above -10°, full below -18° (astronomical twilight)
+  const mwNight = observerMode ? THREE.MathUtils.clamp((-sunAltDeg - 10) / 8, 0, 1) : 1;
+  milkyMat.opacity = MILKY_GAIN * mwNight * (1 - 0.5 * moonGlare);
+  if (Math.abs(night - lastNight) > 0.02) {   // names fade with the stars by day
+    lastNight = night;
+    for (const sp of conLabels.children) sp.material.opacity = (sp.userData.major ? 0.95 : 0.7) * night;
+  }
   if (observerMode) {
     const k = THREE.MathUtils.smoothstep(sunAltDeg, -8, 6);
     renderer.setClearColor(_skyCol.setRGB(0.42 * k, 0.62 * k, 0.9 * k));
@@ -1699,7 +1896,7 @@ function applyRealState() {
   prevEarthPos.copy(earthPivot.position);
 
   const now = performance.now();
-  if (now - lastReadout > 250) {
+  if (now - lastReadout > 200) {
     lastReadout = now;
     updateRealReadouts(tt, sv);
   }
@@ -1727,6 +1924,11 @@ function updateRealReadouts(tt, sv) {
     const name = (lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip])) || ('HIP ' + hip);
     $('poleVal').textContent = t('poleStar').replace('{name}', name).replace('{d}', bestD.toFixed(1));
   }
+  const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+  const pad = (n) => String(n).padStart(2, '0');
+  $('clockVal').textContent =
+    `${c.year}-${pad(c.month)}-${pad(c.day)} ${pad(c.hour)}:${pad(c.minute)}:${pad(Math.floor(c.second))} ${real.basis === 'lmt' ? 'LMT' : 'UTC'}`;
+  if (document.activeElement !== $('rYearSlider')) $('rYearSlider').value = THREE.MathUtils.clamp(c.year, -3000, 3000);
   if (!fieldFocused() && !paused) jdToFields(real.jd);
 }
 
@@ -1759,6 +1961,18 @@ function updateObserverViewReal() {
   horizonGroup.position.copy(_obsCamPos);
   horizonGroup.quaternion.setFromRotationMatrix(_basisM.makeBasis(_east, _north, _obsUp));
   earthPivot.visible = false;
+  const vs = `${real.az.toFixed(0)}° / ${real.alt.toFixed(0)}° / ${camera.fov.toFixed(0)}°`;
+  if (vs !== lastViewStr) { lastViewStr = vs; $('viewVal').textContent = vs; }
+}
+let lastViewStr = '';
+
+// Azimuth/altitude of a direction given in the scene frame, for the current
+// observer (uses the ENU basis computed by updateObserverViewReal).
+function sceneDirToAzAlt(dir) {
+  return {
+    alt: Math.asin(THREE.MathUtils.clamp(dir.dot(_obsUp), -1, 1)) * 180 / Math.PI,
+    az: Astro.norm360(Math.atan2(dir.dot(_east), dir.dot(_north)) * 180 / Math.PI),
+  };
 }
 
 // Drag to look around (real-sky observer view); click the globe to pick a place.
@@ -1781,10 +1995,106 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   }
 });
 addEventListener('pointerup', (e) => {
-  if (lookDrag && !lookDrag.moved && real.on && !observerMode && e.target === renderer.domElement) {
-    pickPlaceAt(e.clientX, e.clientY);
+  if (lookDrag && !lookDrag.moved && real.on && e.target === renderer.domElement) {
+    if (observerMode) pickStarAt(e.clientX, e.clientY);
+    else pickPlaceAt(e.clientX, e.clientY);
   }
   lookDrag = null;
+});
+
+// ---- Click a star in the sky view: identify it ----
+const _proj = new THREE.Vector3();
+const _starDir = new THREE.Vector3();
+const _fwd = new THREE.Vector3();
+function pickStarAt(x, y) {
+  camera.getWorldDirection(_fwd);
+  let best = -1, bestScore = 1e9;
+  for (let i = 0; i < N_STARS; i++) {
+    _starDir.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]);
+    if (_starDir.dot(_obsUp) < 0 || _starDir.dot(_fwd) <= 0) continue;   // below horizon / behind
+    _proj.copy(_starDir).add(skyGroup.position).project(camera);
+    const sx = (_proj.x + 1) / 2 * innerWidth, sy = (1 - _proj.y) / 2 * innerHeight;
+    const d = Math.hypot(sx - x, sy - y);
+    if (d > 28) continue;
+    const score = d + STARS.stars[i][3] * 3;   // prefer the brighter star nearby
+    if (score < bestScore) { bestScore = score; best = i; }
+  }
+  if (best < 0) { hideStarInfo(); return; }
+  showStarInfo(best);
+  requestRender();
+}
+function showStarInfo(i) {
+  const s = STARS.stars[i], hip = s[0];
+  const zh = hip ? STARS.zh[hip] : '', en = hip ? STARS.en[hip] : '';
+  const primary = lang === 'zh' ? (zh || en) : (en || zh);
+  const secondary = lang === 'zh' ? en : zh;
+  const name = primary || (hip ? `HIP ${hip}` : '?');
+  _starDir.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).normalize();
+  const h = sceneDirToAzAlt(_starDir);
+  const con = hip ? hipCon.get(hip) : null;
+  const rows = [`<b>${name}</b>`];
+  if (secondary && secondary !== name) rows.push(`<div class="dim">${secondary}</div>`);
+  rows.push(`<div>${t('infoMag')} ${s[3].toFixed(2)}${con ? ` · ${t('infoCon')} ${con}` : ''}</div>`);
+  rows.push(`<div>${t('infoAltAz')} ${h.alt.toFixed(1)}° / ${h.az.toFixed(1)}°${h.alt < 0 ? ` · ${t('belowHorizon')}` : ''}</div>`);
+  rows.push(`<div class="dim">${hip ? `HIP ${hip} · ` : ''}RA ${(s[1] / 15).toFixed(2)}h · Dec ${s[2].toFixed(1)}°</div>`);
+  showInfoHtml(rows.join(''));
+  selMarker.position.copy(_starDir).multiplyScalar(R_SKY * 0.97);
+  selMarker.visible = true;
+}
+function showInfoHtml(html) {
+  const box = $('starInfo');
+  box.innerHTML = html;
+  box.classList.add('show');
+  selMarker.visible = false;
+}
+function hideStarInfo() {
+  $('starInfo').classList.remove('show');
+  selMarker.visible = false;
+  requestRender();
+}
+
+// ---- Go to: turn the sky view toward an object ----
+const _gotoDir = new THREE.Vector3();
+function gotoTarget(id) {
+  if (!observerMode) setObserverMode(true);
+  updateObserverViewReal();   // ENU basis for the current place
+  let label = '';
+  if (id === 'sun') { _gotoDir.copy(_sunDir); label = t('gotoSun'); }
+  else if (id === 'moon') { moon.getWorldPosition(_gotoDir).sub(_obsCamPos).normalize(); label = t('gotoMoon'); }
+  else if (id === 'pole') { _gotoDir.copy(poleDirScene); label = t('gotoPole'); }
+  else if (id.startsWith('con:')) { label = id.slice(4); _gotoDir.copy(conCentroid.get(label)); }
+  else if (id.startsWith('hip:')) {
+    const i = hipIndex.get(Number(id.slice(4)));
+    if (i === undefined) return;
+    _gotoDir.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).normalize();
+  } else return;
+  const h = sceneDirToAzAlt(_gotoDir);
+  real.az = h.az;
+  real.alt = THREE.MathUtils.clamp(h.alt, -25, 89.9);
+  if (id.startsWith('hip:')) showStarInfo(hipIndex.get(Number(id.slice(4))));
+  else showInfoHtml(`<b>${label}</b><div>${t('infoAltAz')} ${h.alt.toFixed(1)}° / ${h.az.toFixed(1)}°${h.alt < 0 ? ` · ${t('belowHorizon')}` : ''}</div>`);
+  requestRender();
+}
+
+// Keyboard: arrows look around, +/- zoom (sky view of real-sky mode)
+addEventListener('keydown', (e) => {
+  if (!real.on || !observerMode) return;
+  // Leave the keys to text fields, selects and sliders; a focused checkbox or
+  // button (just clicked in the panel) should not swallow them.
+  const el = e.target;
+  const tag = el && el.tagName;
+  if (tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (tag === 'INPUT' && ['number', 'text', 'range'].includes(el.type)) return;
+  const step = e.shiftKey ? 10 : 2;
+  if (e.key === 'ArrowLeft') real.az = Astro.norm360(real.az - step);
+  else if (e.key === 'ArrowRight') real.az = Astro.norm360(real.az + step);
+  else if (e.key === 'ArrowUp') real.alt = Math.min(89.9, real.alt + step);
+  else if (e.key === 'ArrowDown') real.alt = Math.max(-25, real.alt - step);
+  else if (e.key === '+' || e.key === '=') obsFov = Math.max(8, obsFov / 1.2);
+  else if (e.key === '-' || e.key === '_') obsFov = Math.min(OBSERVER_FOV, obsFov * 1.2);
+  else return;
+  e.preventDefault();
+  requestRender();
 });
 
 const raycaster = new THREE.Raycaster();
@@ -1821,7 +2131,9 @@ function setRealMode(on) {
     jdToFields(real.jd);
     applyRealState();
     if (!observerMode) setObserverMode(true);
+    else { obsFov = REAL_FOV; real.az = 180; real.alt = 40; }
   } else {
+    hideStarInfo();
     horizonGroup.visible = false;
     earthPivot.visible = true;
     renderer.setClearColor(0x000000);
@@ -1859,6 +2171,79 @@ $('rM1d').addEventListener('click', shiftDays(-1));
 $('rM1h').addEventListener('click', shiftDays(-1 / 24));
 $('rP1h').addEventListener('click', shiftDays(1 / 24));
 $('rP1d').addEventListener('click', shiftDays(1));
+
+// Calendar steps keep the local clock time; the year slider drags the year.
+function stepCalendar(dYear, dMonth) {
+  const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+  let y = c.year + dYear, m = c.month + dMonth;
+  while (m > 12) { m -= 12; y += 1; }
+  while (m < 1) { m += 12; y -= 1; }
+  real.jd = Astro.calendarToJD({ year: y, month: m, day: c.day, hour: c.hour, minute: c.minute, second: c.second }, real.cal)
+    - localOffsetDays();
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
+}
+$('rM100y').addEventListener('click', () => stepCalendar(-100, 0));
+$('rM1y').addEventListener('click', () => stepCalendar(-1, 0));
+$('rM1m').addEventListener('click', () => stepCalendar(0, -1));
+$('rP1m').addEventListener('click', () => stepCalendar(0, 1));
+$('rP1y').addEventListener('click', () => stepCalendar(1, 0));
+$('rP100y').addEventListener('click', () => stepCalendar(100, 0));
+$('rYearSlider').addEventListener('input', (e) => {
+  const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+  stepCalendar(Number(e.target.value) - c.year, 0);
+});
+
+// Play/pause button mirrors the global Pause checkbox
+function refreshPlayButton() {
+  $('rPlay').textContent = paused ? '▶ ' + t('resume') : '❙❙ ' + t('pause2');
+}
+$('rPlay').addEventListener('click', () => {
+  $('pause').checked = !paused;
+  $('pause').dispatchEvent(new Event('change'));
+});
+$('pause').addEventListener('change', refreshPlayButton);
+refreshPlayButton();
+
+// "Go to" list: Sun, Moon, pole, the 28 mansions, major asterisms, bright stars
+function buildGotoList() {
+  const sel = $('rGoto');
+  sel.innerHTML = '';
+  const add = (parent, value, text) => {
+    const o = document.createElement('option');
+    o.value = value;
+    o.textContent = text;
+    parent.appendChild(o);
+  };
+  add(sel, '', t('lblNone'));
+  add(sel, 'sun', t('gotoSun'));
+  add(sel, 'moon', t('gotoMoon'));
+  add(sel, 'pole', t('gotoPole'));
+  const g1 = document.createElement('optgroup');
+  g1.label = t('grpXiu');
+  for (const x of XIU) if (conCentroid.has(x)) add(g1, 'con:' + x, x);
+  sel.appendChild(g1);
+  const g2 = document.createElement('optgroup');
+  g2.label = t('grpCon');
+  for (const x of ['北斗', '北极', '紫微左垣', '紫微右垣', '太微左垣', '太微右垣', '天市左垣', '天市右垣']) {
+    if (conCentroid.has(x)) add(g2, 'con:' + x, x);
+  }
+  sel.appendChild(g2);
+  const g3 = document.createElement('optgroup');
+  g3.label = t('grpStars');
+  for (const hip of GOTO_STARS) {
+    if (!hipIndex.has(hip)) continue;
+    const zh = STARS.zh[hip] || '', en = STARS.en[hip] || '';
+    add(g3, 'hip:' + hip, lang === 'zh' ? (zh || en) : `${en} ${zh}`.trim());
+  }
+  sel.appendChild(g3);
+}
+buildGotoList();
+$('rGoto').addEventListener('change', (e) => {
+  if (e.target.value) gotoTarget(e.target.value);
+  e.target.value = '';
+});
 
 function applyLatLon() {
   const la = Number($('rLat').value), lo = Number($('rLon').value);
@@ -1922,7 +2307,17 @@ $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.ch
 $('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
 
 // Debug handle (used by the browser checks in PLAN.md)
-window.__orbit = { real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode, sunDir: _sunDir, poleDirScene, toScene };
+window.__orbit = {
+  real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode,
+  gotoTarget, pickStarAt, sunDir: _sunDir, poleDirScene, toScene, milkyWay,
+  // synchronous frame for automated checks (background tabs throttle rAF)
+  renderNow() {
+    if (real.on) applyRealState();
+    if (observerMode) updateObserverView(); else controls.update();
+    syncSky();
+    renderer.render(scene, camera);
+  },
+};
 
 // ---- Animation loop (power & heat friendly) ----
 const worldTime = { value: 0 };
