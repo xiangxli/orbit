@@ -213,3 +213,45 @@ test('Polaris altitude equals latitude (present day)', () => {
     near(h.alt, lat, 0.8, `lat ${lat}`);
   }
 });
+
+// ---- Planets (JPL approximate elements) ----
+test('planetVectorJ2000: Venus 1992-12-20 0h TD (Meeus ex. 33.a)', () => {
+  const jd = 2448976.5;
+  const p = A.planetVectorJ2000('venus', jd);
+  const eq = A.vecToSph(A.matVec(A.precessionMatrix(jd), p.v));
+  nearAngle(eq.lon, hms(21, 4, 41.454), 0.02, 'RA (apparent in Meeus; we are geometric)');
+  near(eq.lat, -dms(18, 53, 16.84), 0.02, 'Dec');
+  near(p.dist, 0.910845, 0.002, 'distance au');
+});
+
+test('Mars at opposition 2022-12-08 05:42 UT: opposite the Sun', () => {
+  const jd = A.jdTTfromUT(A.calendarToJD({ year: 2022, month: 12, day: 8, hour: 5, minute: 42 }));
+  const mars = A.vecToSph(A.planetVectorJ2000('mars', jd).v);
+  const sun = A.vecToSph(A.sunVectorJ2000(jd).v);
+  const m = A.eqToEcl(mars.lon, mars.lat, A.EPS_J2000), s = A.eqToEcl(sun.lon, sun.lat, A.EPS_J2000);
+  nearAngle(m.lon - s.lon, 180, 0.1, 'ecliptic longitude difference');
+  assert.ok(A.planetVectorJ2000('mars', jd).mag < -1.5, 'bright at opposition');
+});
+
+test('Great conjunction 2020-12-21: Jupiter and Saturn 0.1° apart', () => {
+  const jd = A.jdTTfromUT(A.calendarToJD({ year: 2020, month: 12, day: 21, hour: 18 }));
+  const d = A.angularDistance(A.planetVectorJ2000('jupiter', jd).v, A.planetVectorJ2000('saturn', jd).v);
+  assert.ok(d < 0.25, `separation ${d.toFixed(3)}°`);
+});
+
+test('findMoonPlanetApproach: lunar occultations of Mars, 2022-12-08 (London) and 2025-01-14 (New York)', () => {
+  const ev1 = A.findMoonPlanetApproach('mars', A.calendarToJD({ year: 2022, month: 12, day: 1 }), 1, 51.5, -0.13, { maxDays: 60 });
+  assert.ok(ev1, 'an approach is found');
+  const c1 = A.jdToCalendar(ev1.jd);
+  assert.deepEqual([c1.year, c1.month, c1.day], [2022, 12, 8]);
+  assert.ok(ev1.occultation, `occultation (sep ${ev1.sep.toFixed(3)}°, Moon radius ${ev1.moonRadius.toFixed(3)}°)`);
+  assert.ok(ev1.moonAlt > 0 && ev1.sunAlt < 0, 'visible at night');
+  const ev2 = A.findMoonPlanetApproach('mars', A.calendarToJD({ year: 2025, month: 1, day: 1 }), 1, 40.71, -74.01, { maxDays: 60 });
+  assert.ok(ev2, 'an approach is found');
+  const c2 = A.jdToCalendar(ev2.jd);
+  assert.deepEqual([c2.year, c2.month, c2.day], [2025, 1, 14]);
+  assert.ok(ev2.occultation, `occultation (sep ${ev2.sep.toFixed(3)}°, Moon radius ${ev2.moonRadius.toFixed(3)}°)`);
+  // Backward search from after the event finds the same one
+  const back = A.findMoonPlanetApproach('mars', A.calendarToJD({ year: 2025, month: 2, day: 1 }), -1, 40.71, -74.01, { maxDays: 60 });
+  near(back.jd, ev2.jd, 0.01, 'backward search agrees');
+});

@@ -5,100 +5,165 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Earth Orbit Around the Sun</title>
 <style>
+  :root {
+    --accent: #8fc8ff;
+    --accent-soft: rgba(143, 200, 255, 0.16);
+    --accent-line: rgba(143, 200, 255, 0.38);
+    --text: #e6eefc;
+    --muted: #8a9bbd;
+    --glass: rgba(8, 12, 20, 0.52);
+    --line: rgba(160, 190, 240, 0.14);
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden; background: #000; color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
   canvas { display: block; touch-action: none; }
-  #hud {
-    position: absolute; top: 16px; left: 16px;
-    background: rgba(10, 14, 24, 0.72);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    padding: 14px 16px;
-    color: #e8eefc;
-    min-width: 240px;
-    user-select: none;
+  button, select, input { font-family: inherit; }
+
+  /* Glass panels with a slow breathing glow (cool blue, never warm) */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    animation: breathe 7s ease-in-out infinite;
   }
-  #hud h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.06em; color: #ffd27a; }
-  #hudHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  @keyframes breathe {
+    0%, 100% { box-shadow: 0 0 22px rgba(143, 200, 255, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.02); }
+    50% { box-shadow: 0 0 36px rgba(143, 200, 255, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+  }
+  @media (prefers-reduced-motion: reduce) { .glass { animation: none; } }
+
+  /* Control panel */
+  #hud { position: absolute; top: 16px; left: 16px; width: 304px; padding: 12px 14px; user-select: none; touch-action: manipulation; }
+  #hudHeader { display: flex; align-items: center; gap: 8px; }
+  #hud h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg { display: flex; border: 1px solid var(--accent-line); border-radius: 8px; overflow: hidden; flex: none; }
+  .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; }
+  .seg button.on { background: var(--accent-soft); color: var(--text); }
   #hudToggle {
-    background: rgba(255, 210, 122, 0.1); color: #ffd27a;
-    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
-    width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.15s;
+    background: transparent; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 8px;
+    width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
   }
-  #hudToggle:hover { background: rgba(255, 210, 122, 0.25); }
+  #hudToggle:hover { background: var(--accent-soft); }
   #hudToggle .chev { transition: transform 0.18s ease; }
   #hud.collapsed #hudToggle .chev { transform: rotate(180deg); }
-  #hud.collapsed { min-width: 0; padding-bottom: 10px; }
-  #hud.collapsed #hudHeader { margin-bottom: 0; }
+  #hud.collapsed { width: auto; }
   #hud.collapsed #hudBody { display: none; }
-  #hud label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 7px 0; color: #b9c6e0; cursor: pointer; }
-  #hud input[type="range"] { flex: 1; accent-color: #ffd27a; height: 4px; }
-  #hud input[type="checkbox"] { accent-color: #ffd27a; }
-  #starList {
-    flex: 1; min-width: 0; font-size: 12px; padding: 3px 6px;
-    background: rgba(20, 26, 40, 0.9); color: #e8eefc;
-    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
+  #hudBody { margin-top: 8px; max-height: calc(100vh - 150px); overflow-y: auto; scrollbar-width: thin; }
+  details { border-top: 1px solid var(--line); padding: 2px 0 6px; }
+  details:first-child { border-top: 0; }
+  summary { list-style: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text); padding: 7px 0; display: flex; align-items: center; gap: 8px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before {
+    content: ''; width: 6px; height: 6px; border-right: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent);
+    transform: rotate(-45deg); transition: transform 0.18s; margin: 0 2px 0 2px;
   }
-  #observer, #reset {
-    margin-top: 8px; width: 100%; padding: 6px 0; font-size: 12px;
-    background: rgba(255, 210, 122, 0.12); color: #ffd27a;
-    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 6px;
-    cursor: pointer; transition: background 0.15s;
+  details[open] > summary::before { transform: rotate(45deg); }
+  #hud label { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 6px 0; color: var(--muted); cursor: pointer; }
+  #hud label:hover { color: var(--text); }
+  #hud input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
+  #hud input[type="checkbox"] { accent-color: var(--accent); }
+  .row { display: flex; align-items: center; gap: 4px; font-size: 12px; margin: 6px 0; color: var(--muted); }
+  .row > span:first-child { min-width: 52px; }
+  .row input[type="number"], .row select, #hud select {
+    width: 50px; font-size: 12px; padding: 3px 5px; outline: none;
+    background: rgba(255, 255, 255, 0.06); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
   }
-  #observer:hover, #reset:hover { background: rgba(255, 210, 122, 0.25); }
-  #observer.active { background: rgba(255, 210, 122, 0.4); border-color: #ffd27a; }
-  #hud .stat { font-size: 11px; color: #7f8db0; margin-top: 8px; }
-  #hud .stat span { color: #ffd27a; }
-  #hud { touch-action: manipulation; }
-  #todayRow { cursor: pointer; }
-  #todayRow:hover { color: #ffffff; text-shadow: 0 0 8px rgba(255, 210, 122, 0.9), 0 0 16px rgba(255, 210, 122, 0.5); }
-  #todayRow:hover span { color: #ffd27a; }
-  /* Real-sky panel */
-  #realFields { display: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 6px; padding-top: 6px; }
-  #hud.real #realFields { display: block; }
-  #hud.real .demoOnly { opacity: 0.35; pointer-events: none; }
-  .row { display: flex; align-items: center; gap: 4px; font-size: 12px; margin: 5px 0; color: #b9c6e0; }
-  .row > span:first-child { min-width: 54px; }
-  .row input[type="number"], .row select {
-    width: 50px; font-size: 12px; padding: 2px 4px;
-    background: rgba(20, 26, 40, 0.9); color: #e8eefc;
-    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 4px;
-  }
+  .row input[type="number"]:focus, .row select:focus { border-color: var(--accent-line); }
   .row input.wide { width: 68px; }
-  .row select.wide { width: auto; flex: 1; min-width: 0; }
-  .row button {
-    font-size: 11px; padding: 3px 7px; flex: 1;
-    background: rgba(255, 210, 122, 0.12); color: #ffd27a;
-    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 4px; cursor: pointer;
+  .row select.wide, #hud select.wide { width: auto; flex: 1; min-width: 0; }
+  .row input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
+  .row button, #hud .btn {
+    font-size: 11px; padding: 4px 6px; flex: 1; cursor: pointer;
+    background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    transition: background 0.15s, border-color 0.15s;
   }
-  .row button:hover { background: rgba(255, 210, 122, 0.25); }
-  .row input[type="range"] { flex: 1; accent-color: #ffd27a; height: 4px; }
-  #hudBody { max-height: calc(100vh - 80px); overflow-y: auto; }
-  #starInfo {
-    position: absolute; right: 16px; bottom: 16px; display: none;
-    background: rgba(10, 14, 24, 0.78); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 12px;
-    padding: 12px 14px; color: #e8eefc; font-size: 12px; line-height: 1.6;
-    min-width: 180px; max-width: 280px; user-select: none;
+  .row button:hover, #hud .btn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+  #hud .btn { width: 100%; margin-top: 6px; padding: 6px 0; font-size: 12px; }
+  #hud .btn.active { background: var(--accent-soft); border-color: var(--accent); }
+  #hud .stat { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  #hud .stat span { color: var(--text); }
+  #todayRow { cursor: pointer; }
+  #todayRow:hover span { color: var(--accent); }
+  #realFields { display: none; }
+  #hud.real #realFields { display: block; }
+  #hud:not(.real) .realOnly { display: none; }
+  #hud.real .demoOnly { opacity: 0.35; pointer-events: none; }
+  #clockVal { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* Bottom toolbar (real-sky mode) */
+  #toolbar {
+    position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: none; align-items: center; gap: 2px; padding: 6px 8px; border-radius: 999px; max-width: calc(100vw - 24px);
   }
+  #hud.real ~ #toolbar { display: flex; }
+  #toolbar button { font-size: 12px; padding: 6px 10px; background: transparent; color: var(--muted); border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  #toolbar button:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+  #toolbar button.on { color: var(--text); background: var(--accent-soft); }
+  #toolbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 5px; flex: none; }
+
+  /* Welcome card: choose an era and a place */
+  #welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); z-index: 5; }
+  #welcome.hidden { display: none; }
+  #welcome .card { width: min(440px, calc(100vw - 32px)); padding: 22px 24px; }
+  #welcome h2 { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px; }
+  #welcome .wYear { font-size: 44px; font-weight: 300; letter-spacing: 0.02em; text-align: center; font-variant-numeric: tabular-nums; margin: 2px 0 0; }
+  #welcome .wYear small { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
+  #welcome input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 10px; }
+  #welcome .row > span:first-child { min-width: 40px; }
+  #welcome .wActions { display: flex; gap: 8px; margin-top: 14px; }
+  #welcome button { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
+  #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
+  #welcome button:hover { background: var(--accent-soft); }
+  #welcome .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+  /* Object info card */
+  #starInfo { position: absolute; right: 16px; bottom: 76px; display: none; padding: 12px 14px; font-size: 12px; line-height: 1.6; min-width: 180px; max-width: 280px; user-select: none; }
   #starInfo.show { display: block; }
-  #starInfo b { font-size: 16px; color: #ffe9b0; display: block; margin-bottom: 2px; }
-  #starInfo .dim { color: #7f8db0; }
+  #starInfo b { font-size: 16px; color: var(--accent); display: block; margin-bottom: 2px; }
+  #starInfo .dim { color: var(--muted); }
+
   @media (max-width: 640px) {
-    #hud { top: 8px; left: 8px; right: auto; max-width: calc(100vw - 16px); }
-    #hudToggle { width: 36px; height: 36px; }
-    #hud h1 { font-size: 13px; }
+    #hud { top: auto; bottom: 64px; left: 8px; right: 8px; width: auto; }
+    #hud.collapsed { width: auto; right: auto; }
+    #hudBody { max-height: 38vh; }
+    #toolbar { bottom: 8px; overflow-x: auto; }
+    #starInfo { right: 8px; left: 8px; top: 8px; bottom: auto; max-width: none; }
+    #welcome .wYear { font-size: 34px; }
   }
 </style>
 </head>
 <body>
 
-<div id="hud">
+<div id="welcome">
+  <div class="card glass">
+    <h2 id="wTitle">Choose an era and a place</h2>
+    <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
+    <input type="range" id="wYear" min="-3000" max="3000" step="1" value="2026" />
+    <div class="row"><span id="wLblDate">Date</span>
+      <input type="number" id="wYearIn" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
+      <input type="number" id="wMonth" min="1" max="12" step="1" />
+      <input type="number" id="wDay" min="1" max="31" step="1" />
+    </div>
+    <div class="row"><span id="wLblPlace">Place</span>
+      <select id="wCity" class="wide"></select>
+    </div>
+    <div class="wActions">
+      <button id="wStart" class="primary">Start</button>
+      <button id="wDemo">Demo mode</button>
+    </div>
+    <div class="hint" id="wHint">Opens at 21:00 local mean time, facing south. Drag to look around, wheel to zoom, click a star to identify it.</div>
+  </div>
+</div>
+
+<div id="hud" class="glass">
   <div id="hudHeader">
-    <h1 id="hudTitle">EARTH &bull; SUN SYSTEM</h1>
+    <h1 id="hudTitle">REAL SKY</h1>
+    <div class="seg"><button id="modeReal">Real sky</button><button id="modeDemo" class="on">Demo</button></div>
     <button id="hudToggle" aria-label="Toggle panel" title="Show/hide controls">
       <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
         <path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="2"
@@ -107,105 +172,137 @@
     </button>
   </div>
   <div id="hudBody">
-    <label><input type="checkbox" id="realMode" /> <span id="lblRealMode">Real sky (date &amp; place)</span></label>
     <div id="realFields">
-      <div class="row"><span id="lblDate">Date</span>
-        <input type="number" id="rYear" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
-        <input type="number" id="rMonth" min="1" max="12" step="1" />
-        <input type="number" id="rDay" min="1" max="31" step="1" />
-      </div>
-      <div class="row"><span id="lblTime">Time</span>
-        <input type="number" id="rHour" min="0" max="23" step="1" />
-        <input type="number" id="rMinute" min="0" max="59" step="1" />
-        <select id="rBasis" class="wide"><option value="lmt">Local mean time</option><option value="utc">UTC</option></select>
-      </div>
-      <div class="row"><span id="lblCal">Calendar</span>
-        <select id="rCal" class="wide"><option value="auto">Auto (Julian before 1582)</option><option value="julian">Julian</option><option value="gregorian">Gregorian</option></select>
-      </div>
-      <div class="row">
-        <button id="rNow">Now</button><button id="rM1d">&minus;1d</button><button id="rM1h">&minus;1h</button><button id="rP1h">+1h</button><button id="rP1d">+1d</button>
-      </div>
-      <div class="row"><span id="lblYear">Year</span>
-        <input type="range" id="rYearSlider" min="-3000" max="3000" step="1" value="2026" />
-      </div>
-      <div class="row">
-        <button id="rM100y">&minus;100y</button><button id="rM1y">&minus;1y</button><button id="rM1m">&minus;1m</button>
-      </div>
-      <div class="row">
-        <button id="rP1m">+1m</button><button id="rP1y">+1y</button><button id="rP100y">+100y</button>
-      </div>
-      <div class="row">
-        <button id="rPlay" style="flex: 0 0 auto; min-width: 64px;">Pause</button>
-        <span id="clockVal" style="flex: 1; color: #ffd27a; font-variant-numeric: tabular-nums;"></span>
-      </div>
-      <div class="row"><span id="lblPlace">Place</span>
-        <select id="rCity" class="wide"></select>
-      </div>
-      <div class="row"><span id="lblLatLon">Lat / Lon</span>
-        <input type="number" id="rLat" class="wide" min="-90" max="90" step="0.01" />
-        <input type="number" id="rLon" class="wide" min="-180" max="180" step="0.01" />
-      </div>
-      <div class="row"><span id="lblGoto">Go to</span>
-        <select id="rGoto" class="wide"></select>
-      </div>
-      <label><span id="lblRate">Time rate</span>
-        <input type="range" id="rRate" min="0" max="140" value="0" step="1" />
-      </label>
-      <div class="stat"><span id="lblRateVal">Rate:</span> <span id="rateVal">1&times;</span></div>
-      <label><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
-      <label><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
-      <div class="stat"><span id="lblLst">Local sidereal time:</span> <span id="lstVal">-</span></div>
-      <div class="stat"><span id="lblSunAlt">Sun alt / az:</span> <span id="sunAltVal">-</span></div>
-      <div class="stat"><span id="lblMoonPhase">Moon:</span> <span id="moonPhaseVal">-</span></div>
-      <div class="stat"><span id="lblPole">Pole star:</span> <span id="poleVal">-</span></div>
-      <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
-      <div class="stat" id="pickHint">Free view: click the globe to pick a place</div>
+      <details open>
+        <summary id="secTime">Time</summary>
+        <div class="row">
+          <button id="rPlay" style="flex: 0 0 auto; min-width: 64px;">Pause</button>
+          <span id="clockVal" style="flex: 1;"></span>
+        </div>
+        <div class="row"><span id="lblDate">Date</span>
+          <input type="number" id="rYear" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
+          <input type="number" id="rMonth" min="1" max="12" step="1" />
+          <input type="number" id="rDay" min="1" max="31" step="1" />
+        </div>
+        <div class="row"><span id="lblTime">Time</span>
+          <input type="number" id="rHour" min="0" max="23" step="1" />
+          <input type="number" id="rMinute" min="0" max="59" step="1" />
+          <select id="rBasis" class="wide"><option value="lmt">Local mean time</option><option value="utc">UTC</option></select>
+        </div>
+        <div class="row"><span id="lblCal">Calendar</span>
+          <select id="rCal" class="wide"><option value="auto">Auto (Julian before 1582)</option><option value="julian">Julian</option><option value="gregorian">Gregorian</option></select>
+        </div>
+        <div class="row">
+          <button id="rNow">Now</button><button id="rM1d">&minus;1d</button><button id="rM1h">&minus;1h</button><button id="rP1h">+1h</button><button id="rP1d">+1d</button>
+        </div>
+        <div class="row"><span id="lblYear">Year</span>
+          <input type="range" id="rYearSlider" min="-3000" max="3000" step="1" value="2026" />
+        </div>
+        <div class="row">
+          <button id="rM100y">&minus;100y</button><button id="rM1y">&minus;1y</button><button id="rM1m">&minus;1m</button>
+        </div>
+        <div class="row">
+          <button id="rP1m">+1m</button><button id="rP1y">+1y</button><button id="rP100y">+100y</button>
+        </div>
+        <label><span id="lblRate">Time rate</span>
+          <input type="range" id="rRate" min="0" max="140" value="0" step="1" />
+        </label>
+        <div class="stat"><span id="lblRateVal">Rate:</span> <span id="rateVal">1&times;</span></div>
+      </details>
+      <details>
+        <summary id="secPlace">Place</summary>
+        <div class="row"><span id="lblPlace">Place</span>
+          <select id="rCity" class="wide"></select>
+        </div>
+        <div class="row"><span id="lblLatLon">Lat / Lon</span>
+          <input type="number" id="rLat" class="wide" min="-90" max="90" step="0.01" />
+          <input type="number" id="rLon" class="wide" min="-180" max="180" step="0.01" />
+        </div>
+        <div class="stat" id="pickHint">Free view: click the globe to pick a place</div>
+      </details>
+      <details>
+        <summary id="secSky">Sky events</summary>
+        <div class="row"><span id="lblGoto">Go to</span>
+          <select id="rGoto" class="wide"></select>
+        </div>
+        <div class="row"><span id="lblOccult">Moon meets</span>
+          <select id="occPlanet" class="wide"></select>
+          <button id="occPrev" style="flex: 0 0 auto">&#9664;</button><button id="occNext" style="flex: 0 0 auto">&#9654;</button>
+        </div>
+        <div class="stat" id="occVal"></div>
+        <div class="stat"><span id="lblLst">Local sidereal time:</span> <span id="lstVal">-</span></div>
+        <div class="stat"><span id="lblSunAlt">Sun alt / az:</span> <span id="sunAltVal">-</span></div>
+        <div class="stat"><span id="lblMoonPhase">Moon:</span> <span id="moonPhaseVal">-</span></div>
+        <div class="stat"><span id="lblPole">Pole star:</span> <span id="poleVal">-</span></div>
+        <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
+      </details>
     </div>
-    <label class="demoOnly"><span id="lblDayLen">Day length (s)</span>
-      <input type="range" id="dayLen" min="0.5" max="60" value="3.4" step="0.1" />
-    </label>
-    <label class="demoOnly"><span id="lblSpeed">Orbit speed (real = 100)</span>
-      <input type="range" id="speed" min="0" max="300" value="100" step="1" />
-    </label>
-    <label class="demoOnly"><span id="lblRotSpeed">Rotation speed (real = 100)</span>
-      <input type="range" id="rotSpeed" min="0" max="300" value="100" step="1" />
-    </label>
-    <label class="demoOnly"><span id="lblMoonSpeed">Moon speed (real = 100)</span>
-      <input type="range" id="moonSpeed" min="0" max="300" value="100" step="1" />
-    </label>
-    <button id="resetRatio" class="demoOnly"><span id="lblResetRatio">Reset real ratios</span></button>
-    <label class="demoOnly"><span id="lblLat">Observer latitude (observer view)</span>
-      <input type="range" id="lat" min="0" max="90" value="45" step="1" />
-    </label>
-    <label class="demoOnly"><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
-    <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
-    <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
-    <label><input type="checkbox" id="moon" checked /> <span id="lblMoon">Moon</span></label>
-    <label><input type="checkbox" id="orbitPath" /> <span id="lblOrbitPath">Orbit path</span></label>
-    <label><input type="checkbox" id="axis" /> <span id="lblAxis">Show Earth's tilt axis</span></label>
-    <label><input type="checkbox" id="polaris" checked /> <span id="lblPolaris">Polaris</span></label>
-    <label><input type="checkbox" id="polarisLine" /> <span id="lblPolarisLine">Polaris hint line</span></label>
-    <label><input type="checkbox" id="dipper" checked /> <span id="lblDipper">Big Dipper</span></label>
-    <label><input type="checkbox" id="dipperLine" /> <span id="lblDipperLine">Dipper pointer line</span></label>
-    <label><input type="checkbox" id="rays" /> <span id="lblRays">Sun light rays</span></label>
-    <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
-    <label><input type="checkbox" id="starfield" /> <span id="lblStarfield">Background stars</span></label>
-    <label class="demoOnly"><span id="lblGoTo">Go to:</span>
-      <select id="starList"></select>
-    </label>
-    <button id="observer"><span id="lblObserver">Observer view</span></button>
-    <button id="reset"><span id="lblReset">Reset camera</span></button>
-    <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
-    <div class="stat" id="todayRow" title="Click to go to today"><span id="lblToday">Today:</span> <span id="todayDate">-</span></div>
-    <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
-    <div class="stat"><span id="lblHour">Hour of day:</span> <span id="hour">0.0</span> h</div>
-    <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
-    <div class="stat"><span id="lblMoonRate">Moon:</span> <span id="moonRate"></span></div>
+    <details>
+      <summary id="secDisplay">Display</summary>
+      <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
+      <label class="realOnly"><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
+      <label class="realOnly"><input type="checkbox" id="planets" checked /> <span id="lblPlanets">Planets (五星)</span></label>
+      <label><input type="checkbox" id="moon" checked /> <span id="lblMoon">Moon</span></label>
+      <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
+      <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
+      <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
+      <button id="observer" class="btn"><span id="lblObserver">Observer view</span></button>
+      <button id="reset" class="btn"><span id="lblReset">Reset camera</span></button>
+    </details>
+    <details>
+      <summary id="secDemo">Demo mode (advanced)</summary>
+      <label class="demoOnly"><span id="lblDayLen">Day length (s)</span>
+        <input type="range" id="dayLen" min="0.5" max="60" value="3.4" step="0.1" />
+      </label>
+      <label class="demoOnly"><span id="lblSpeed">Orbit speed (real = 100)</span>
+        <input type="range" id="speed" min="0" max="300" value="100" step="1" />
+      </label>
+      <label class="demoOnly"><span id="lblRotSpeed">Rotation speed (real = 100)</span>
+        <input type="range" id="rotSpeed" min="0" max="300" value="100" step="1" />
+      </label>
+      <label class="demoOnly"><span id="lblMoonSpeed">Moon speed (real = 100)</span>
+        <input type="range" id="moonSpeed" min="0" max="300" value="100" step="1" />
+      </label>
+      <button id="resetRatio" class="btn demoOnly"><span id="lblResetRatio">Reset real ratios</span></button>
+      <label class="demoOnly"><span id="lblLat">Observer latitude (observer view)</span>
+        <input type="range" id="lat" min="0" max="90" value="45" step="1" />
+      </label>
+      <label class="demoOnly"><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
+      <label class="demoOnly"><input type="checkbox" id="orbitPath" /> <span id="lblOrbitPath">Orbit path</span></label>
+      <label><input type="checkbox" id="axis" /> <span id="lblAxis">Show Earth&rsquo;s tilt axis</span></label>
+      <label class="demoOnly"><input type="checkbox" id="polaris" checked /> <span id="lblPolaris">Polaris</span></label>
+      <label class="demoOnly"><input type="checkbox" id="polarisLine" /> <span id="lblPolarisLine">Polaris hint line</span></label>
+      <label class="demoOnly"><input type="checkbox" id="dipper" checked /> <span id="lblDipper">Big Dipper</span></label>
+      <label class="demoOnly"><input type="checkbox" id="dipperLine" /> <span id="lblDipperLine">Dipper pointer line</span></label>
+      <label><input type="checkbox" id="rays" /> <span id="lblRays">Sun light rays</span></label>
+      <label class="demoOnly"><input type="checkbox" id="starfield" /> <span id="lblStarfield">Background stars</span></label>
+      <label class="demoOnly"><span id="lblGoTo">Go to:</span>
+        <select id="starList" class="wide"></select>
+      </label>
+      <div class="stat"><span id="lblAngle">Orbital angle:</span> <span id="angle">0.0&deg;</span></div>
+      <div class="stat" id="todayRow" title="Click to go to today"><span id="lblToday">Today:</span> <span id="todayDate">-</span></div>
+      <div class="stat"><span id="lblDay">Day of year:</span> <span id="day">1</span> / 365 &middot; <span id="season">-</span></div>
+      <div class="stat"><span id="lblHour">Hour of day:</span> <span id="hour">0.0</span> h</div>
+      <div class="stat"><span id="lblOrbit">Orbit:</span> <span id="orbitRate"></span> &nbsp; <span id="lblRotation">Rotation:</span> <span id="spinRate"></span></div>
+      <div class="stat"><span id="lblMoonRate">Moon:</span> <span id="moonRate"></span></div>
+    </details>
     <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
   </div>
 </div>
 
-<div id="starInfo"></div>
+<div id="toolbar" class="glass">
+  <button id="tbPlay" title="play / pause">&#10074;&#10074;</button>
+  <span class="sep"></span>
+  <button id="tbRt" class="on">Real time</button>
+  <button id="tb60">1 min/s</button>
+  <button id="tbSky">Wheeling sky</button>
+  <button id="tbPrec">Precession</button>
+  <span class="sep"></span>
+  <button id="tbNow">Now</button>
+  <button id="tbTonight">Tonight</button>
+</div>
+
+<div id="starInfo" class="glass"></div>
 
 <!-- Classic scripts (not modules) so the page still works from file:// -->
 <script src="astro.js"></script>
@@ -796,9 +893,9 @@ $('speed').value = 100;
 $('rotSpeed').value = 100;
 $('moonSpeed').value = 100;
 $('lat').value = 45;
-$('realMode').checked = false;
 $('conLines').checked = true;
 $('conNames').checked = true;
+$('planets').checked = true;
 $('rRate').value = 0;
 $('rBasis').value = 'lmt';
 $('rCal').value = 'auto';
@@ -867,6 +964,13 @@ const I18N = {
     calGregorian: 'Gregorian',
     moonPhase: '{p}% lit \u00B7 {e}\u00B0 from Sun',
     poleStar: '{name}, {d}\u00B0 from the pole',
+    titleReal: 'REAL SKY',
+    modeReal: 'Real sky', modeDemo: 'Demo',
+    secTime: 'Time', secPlace: 'Place', secSky: 'Sky events', secDisplay: 'Display', secDemo: 'Demo mode (advanced)',
+    tbRt: 'Real time', tb60: '1 min/s', tbSky: 'Wheeling sky', tbPrec: 'Precession', tbNow: 'Now', tbTonight: 'Tonight',
+    wTitle: 'Choose an era and a place', wStart: 'Start', wDemo: 'Demo mode',
+    wHint: 'Opens at 21:00 local mean time, facing south. Drag to look around, wheel to zoom, click a star to identify it.',
+    bcHint: '(BC)',
     lblYear: 'Year',
     stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
     pause2: 'Pause', resume: 'Resume',
@@ -875,6 +979,11 @@ const I18N = {
     grpXiu: '28 lunar mansions', grpCon: 'Asterisms', grpStars: 'Bright stars',
     lblView: 'View az / alt / fov:',
     infoMag: 'mag', infoCon: 'in', infoAltAz: 'alt / az', belowHorizon: 'below the horizon',
+    lblPlanets: 'Planets (五星)', grpPlanets: 'Planets',
+    lblOccult: 'Moon meets', occSearching: 'searching…', occNone: 'none visible within 30 years',
+    moonWord: 'Moon ', occOccult: 'occults ', occGraze: 'grazes ', occNear: 'passes ',
+    infoSep: 'separation', moonRadiusWord: 'Moon radius', moonAltWord: 'Moon alt', infoDist: 'distance',
+    infoElong: 'elongation', infoPhase: 'phase',
   },
   zh: {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
@@ -937,6 +1046,13 @@ const I18N = {
     calGregorian: '\u516C\u5386',
     moonPhase: '\u7167\u4EAE {p}% \u00B7 \u8DDD\u65E5 {e}\u00B0',
     poleStar: '{name}\uFF0C\u8DDD\u6781 {d}\u00B0',
+    titleReal: '\u771F\u5B9E\u661F\u7A7A',
+    modeReal: '\u771F\u5B9E\u661F\u7A7A', modeDemo: '\u6F14\u793A',
+    secTime: '\u65F6\u95F4', secPlace: '\u5730\u70B9', secSky: '\u5929\u8C61', secDisplay: '\u663E\u793A', secDemo: '\u6F14\u793A\u6A21\u5F0F\uFF08\u9AD8\u7EA7\uFF09',
+    tbRt: '\u5B9E\u65F6', tb60: '1 \u5206\u949F/\u79D2', tbSky: '\u6597\u8F6C\u661F\u79FB', tbPrec: '\u5C81\u5DEE', tbNow: '\u73B0\u5728', tbTonight: '\u4ECA\u665A',
+    wTitle: '\u9009\u62E9\u5E74\u4EE3\u4E0E\u5730\u70B9', wStart: '\u5F00\u59CB\u89C2\u661F', wDemo: '\u6F14\u793A\u6A21\u5F0F',
+    wHint: '\u8FDB\u5165\u540E\u4E3A\u5F53\u5730\u5E73\u592A\u9633\u65F6 21:00\u3001\u9762\u5411\u5357\u65B9\u3002\u62D6\u52A8\u73AF\u89C6\uFF0C\u6EDA\u8F6E\u7F29\u653E\uFF0C\u70B9\u51FB\u661F\u661F\u8BC6\u522B\u3002',
+    bcHint: '\uFF08\u516C\u5143\u524D\uFF09',
     lblYear: '\u5E74\u4EFD',
     stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
     pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
@@ -945,6 +1061,11 @@ const I18N = {
     grpXiu: '\u4E8C\u5341\u516B\u5BBF', grpCon: '\u661F\u5B98', grpStars: '\u4EAE\u661F',
     lblView: '\u89C6\u7EBF \u65B9\u4F4D / \u9AD8\u5EA6 / \u89C6\u573A\uFF1A',
     infoMag: '\u661F\u7B49', infoCon: '\u5C5E', infoAltAz: '\u9AD8\u5EA6 / \u65B9\u4F4D', belowHorizon: '\u5728\u5730\u5E73\u7EBF\u4E0B',
+    lblPlanets: '\u4E94\u5927\u884C\u661F', grpPlanets: '\u4E94\u661F',
+    lblOccult: '\u6708\u63A9 / \u51CC', occSearching: '\u641C\u7D22\u4E2D\u2026', occNone: '30 \u5E74\u5185\u6CA1\u6709\u53EF\u89C1\u7684',
+    moonWord: '\u6708', occOccult: '\u63A9', occGraze: '\u51CC', occNear: '\u72AF',
+    infoSep: '\u89D2\u8DDD', moonRadiusWord: '\u6708\u9762\u534A\u5F84', moonAltWord: '\u6708\u9AD8', infoDist: '\u8DDD\u79BB',
+    infoElong: '\u8DDD\u65E5', infoPhase: '\u76F8\u89D2',
   },
 };
 
@@ -959,7 +1080,7 @@ const t = (k) => I18N[lang][k] ?? I18N.en[k];
 function applyLang() {
   const d = I18N[lang];
   const set = (id, v) => { document.getElementById(id).textContent = v; };
-  set('hudTitle', d.title);
+  set('hudTitle', document.getElementById('hud').classList.contains('real') ? d.titleReal : d.title);
   document.getElementById('hudToggle').title = d.toggleHint;
   set('lblDayLen', d.lblDayLen);
   set('lblSpeed', d.orbitSpeed);
@@ -995,7 +1116,25 @@ function applyLang() {
   set('lblRotation', d.lblRotation);
   set('lblMoonRate', d.lblMoonRate);
   set('lblFps', d.lblFps);
-  set('lblRealMode', d.realMode);
+  set('modeReal', d.modeReal);
+  set('modeDemo', d.modeDemo);
+  set('secTime', d.secTime);
+  set('secPlace', d.secPlace);
+  set('secSky', d.secSky);
+  set('secDisplay', d.secDisplay);
+  set('secDemo', d.secDemo);
+  set('tbRt', d.tbRt);
+  set('tb60', d.tb60);
+  set('tbSky', d.tbSky);
+  set('tbPrec', d.tbPrec);
+  set('tbNow', d.tbNow);
+  set('tbTonight', d.tbTonight);
+  set('wTitle', d.wTitle);
+  set('wStart', d.wStart);
+  set('wDemo', d.wDemo);
+  set('wHint', d.wHint);
+  set('wLblDate', d.lblDate);
+  set('wLblPlace', d.lblPlace);
   set('lblDate', d.lblDate);
   set('lblTime', d.lblTime);
   set('lblCal', d.lblCal);
@@ -1023,6 +1162,8 @@ function applyLang() {
   set('rP1m', d.stepP1m); set('rP1y', d.stepP1y); set('rP100y', d.stepP100y);
   set('lblGoto', d.lblGoto);
   set('lblView', d.lblView);
+  set('lblPlanets', d.lblPlanets);
+  set('lblOccult', d.lblOccult);
 }
 applyLang();
 
@@ -1412,6 +1553,7 @@ const real = {
   basis: 'lmt',                             // 'lmt' local mean solar time | 'utc'
   cal: 'auto',
   az: 180, alt: 40,                         // observer look direction (deg): south, mid-sky
+  yearRate: 0,                              // "precession" preset: whole tropical years per second
 };
 
 // Historical capitals first, then a few world cities. [id, zh, en, lat, lon]
@@ -1508,17 +1650,21 @@ function bvColor(bv) {
   }
   return tb[tb.length - 1].slice(1);
 }
+// Steep magnitude scale: a 0-mag star is a big bright core, 6th-mag a small
+// dim point; the Milky Way texture carries the fainter background.
+const starBrightFor = (mag) => Math.min(1, Math.max(0.28, Math.pow(10, -0.25 * (mag - 1.5))));
+const starSizeFor = (mag) => Math.min(14, Math.max(1.5, 1.5 + 7 * Math.pow(10, -0.2 * mag)));
+const haloWeightFor = (mag) => Math.min(1, Math.max(0.35, Math.pow(10, -0.3 * (mag - 0.5))));
+const haloSizeFor = (mag) => Math.min(64, 26 * Math.pow(10, -0.2 * mag));
 for (let i = 0; i < N_STARS; i++) {
   const [hip, , , mag, ci] = STARS.stars[i];
   if (hip) hipIndex.set(hip, i);
-  // Steep magnitude scale: a 0-mag star is a big bright core, 6th-mag a
-  // small dim point; the Milky Way texture carries the fainter background.
-  const bright = Math.min(1, Math.max(0.28, Math.pow(10, -0.25 * (mag - 1.5))));
+  const bright = starBrightFor(mag);
   const c = bvColor(ci);
   starCol[i * 3] = c[0] * bright;
   starCol[i * 3 + 1] = c[1] * bright;
   starCol[i * 3 + 2] = c[2] * bright;
-  starSize[i] = Math.min(14, Math.max(1.5, 1.5 + 7 * Math.pow(10, -0.2 * mag)));
+  starSize[i] = starSizeFor(mag);
 }
 
 const starGeo = new THREE.BufferGeometry();
@@ -1607,6 +1753,69 @@ const haloPoints = new THREE.Points(haloGeo, haloMat);
 haloPoints.frustumCulled = false;
 skyGroup.add(haloPoints);
 
+// ---- Planets: five points (+ halos, labels) updated every frame ----
+const PLANET_INFO = {
+  mercury: { zh: '辰星', zhModern: '水星', en: 'Mercury', color: [0.85, 0.82, 0.78] },
+  venus:   { zh: '太白', zhModern: '金星', en: 'Venus',   color: [1.00, 0.97, 0.85] },
+  mars:    { zh: '荧惑', zhModern: '火星', en: 'Mars',    color: [1.00, 0.55, 0.35] },
+  jupiter: { zh: '岁星', zhModern: '木星', en: 'Jupiter', color: [1.00, 0.90, 0.75] },
+  saturn:  { zh: '镇星', zhModern: '土星', en: 'Saturn',  color: [1.00, 0.90, 0.65] },
+};
+const PLANET_LIST = Astro.PLANET_NAMES;
+const planetName = (n) => lang === 'zh' ? PLANET_INFO[n].zh : PLANET_INFO[n].en;
+const planetState = {};
+for (const n of PLANET_LIST) planetState[n] = { dir: new THREE.Vector3(), mag: 0, dist: 0, elongation: 0, phase: 0 };
+function makePlanetLayer(mat) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PLANET_LIST.length * 3), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(PLANET_LIST.length * 3), 3));
+  g.setAttribute('size', new THREE.BufferAttribute(new Float32Array(PLANET_LIST.length), 1));
+  const pts = new THREE.Points(g, mat);
+  pts.frustumCulled = false;
+  skyGroup.add(pts);
+  return pts;
+}
+const planetPts = makePlanetLayer(starMat);
+const planetHaloPts = makePlanetLayer(haloMat);
+const planetGeo = planetPts.geometry;
+const planetHaloGeo = planetHaloPts.geometry;
+const planetLabels = [];
+for (const n of PLANET_LIST) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(planetName(n), '#eef4ff'), transparent: true, depthWrite: false, opacity: 0.95 }));
+  sp.userData.major = true;
+  planetLabels.push(sp);
+  skyGroup.add(sp);
+}
+const planetGroup = { visible: true };
+function setPlanetsVisible(on) {
+  planetGroup.visible = on;
+  planetPts.visible = on;
+  planetHaloPts.visible = on;
+  for (const sp of planetLabels) sp.visible = on;
+}
+const _pDir = new THREE.Vector3();
+function updatePlanets(tt) {
+  const pp = planetGeo.attributes.position.array, pc = planetGeo.attributes.color.array, ps = planetGeo.attributes.size.array;
+  const hp = planetHaloGeo.attributes.position.array, hc = planetHaloGeo.attributes.color.array, hs = planetHaloGeo.attributes.size.array;
+  PLANET_LIST.forEach((n, k) => {
+    const p = Astro.planetVectorJ2000(n, tt);
+    const st = planetState[n];
+    toScene(p.v, st.dir);
+    st.mag = p.mag; st.dist = p.dist; st.elongation = p.elongation; st.phase = p.phase;
+    _pDir.copy(st.dir).multiplyScalar(R_SKY);
+    pp[k * 3] = hp[k * 3] = _pDir.x;
+    pp[k * 3 + 1] = hp[k * 3 + 1] = _pDir.y;
+    pp[k * 3 + 2] = hp[k * 3 + 2] = _pDir.z;
+    const c = PLANET_INFO[n].color, b = starBrightFor(p.mag), w = haloWeightFor(p.mag);
+    pc[k * 3] = c[0] * b; pc[k * 3 + 1] = c[1] * b; pc[k * 3 + 2] = c[2] * b;
+    hc[k * 3] = c[0] * w; hc[k * 3 + 1] = c[1] * w; hc[k * 3 + 2] = c[2] * w;
+    ps[k] = starSizeFor(p.mag);
+    hs[k] = haloSizeFor(p.mag);
+    planetLabels[k].position.copy(st.dir).multiplyScalar(R_SKY * 0.98);
+  });
+  for (const g of [planetGeo, planetHaloGeo]) for (const a of ['position', 'color', 'size']) g.attributes[a].needsUpdate = true;
+}
+
 // ---- Milky Way background (NASA SVS "Deep Star Maps 2020", public domain) ----
 // Plate carrée in J2000 equatorial coordinates, centred on RA 0h with RA
 // growing to the LEFT (drawn as seen from inside). three.js wraps u
@@ -1694,7 +1903,7 @@ for (const c of CONS) {
   // Lunar mansions in gold and always shown; the other asterisms only when zoomed in.
   const major = MAJOR_CON.has(c.zh);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: makeSmallLabel(c.zh, XIU.includes(c.zh) ? '#ffe0a8' : '#cfe0ff'),
+    map: makeSmallLabel(c.zh, XIU.includes(c.zh) ? '#d8ecff' : '#93aacf'),
     transparent: true, depthWrite: false, opacity: major ? 0.95 : 0.7,
   }));
   sp.position.copy(_cen).multiplyScalar(R_SKY * 0.98);
@@ -1707,9 +1916,9 @@ function makeRingTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const ctx = c.getContext('2d');
-  ctx.strokeStyle = '#ffe9b0';
+  ctx.strokeStyle = '#bfe3ff';
   ctx.lineWidth = 3;
-  ctx.shadowColor = 'rgba(255, 233, 176, 0.8)';
+  ctx.shadowColor = 'rgba(143, 200, 255, 0.8)';
   ctx.shadowBlur = 6;
   ctx.beginPath();
   ctx.arc(32, 32, 24, 0, Math.PI * 2);
@@ -1750,32 +1959,106 @@ function buildStarPositions(jdTT) {
   starEpochJd = jdTT;
 }
 
-// ---- Horizon: ground disc, horizon ring, cardinal points ----
-// Local frame: X = east, Y = north, Z = up. The disc sits 0.1 unit under the
-// eye so anything below the horizon (stars, Moon, Sun) is occluded by depth.
+// ---- Horizon: ground, skyline, horizon glow, cardinal points ----
+// Local frame: X = east, Y = north, Z = up. The ground disc sits 0.1 unit
+// under the eye so anything below the horizon (stars, Moon, Sun) is occluded
+// by depth; a low ridge of hills and a translucent glow band sit on top.
 const horizonGroup = new THREE.Group();
 horizonGroup.visible = false;
 scene.add(horizonGroup);
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(R_HORIZON, 96),
-  new THREE.MeshBasicMaterial({ color: 0x0a0d13 })
+  new THREE.MeshBasicMaterial({ color: 0x07090d })
 );
 ground.position.z = -0.1;
 horizonGroup.add(ground);
+
+// Skyline: hills 0.15°–2.5° high (a fixed sum of sines), opaque, so objects
+// set behind them like behind a real landscape.
+const SKY_N = 360;
+const ridgeDeg = new Float32Array(SKY_N + 1);
+for (let i = 0; i <= SKY_N; i++) {
+  const a = (i / SKY_N) * Math.PI * 2;
+  const h = 1.0 + 0.7 * Math.sin(a * 3 + 0.4) + 0.5 * Math.sin(a * 7 + 2.1)
+    + 0.3 * Math.sin(a * 13 + 0.9) + 0.25 * Math.sin(a * 23 + 4.0);
+  ridgeDeg[i] = Math.max(0.15, h);
+}
+{
+  const r = R_HORIZON * 0.995;
+  const pos = new Float32Array((SKY_N + 1) * 6);
+  const idx = [];
+  for (let i = 0; i <= SKY_N; i++) {
+    const a = (i / SKY_N) * Math.PI * 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    pos.set([x, y, -0.1, x, y, r * Math.tan(THREE.MathUtils.degToRad(ridgeDeg[i]))], i * 6);
+    if (i < SKY_N) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  const skyline = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x0b0e15, side: THREE.DoubleSide }));
+  skyline.frustumCulled = false;
+  horizonGroup.add(skyline);
+}
+
+// Horizon glow: additive band from the horizon up to 14°, per-vertex colour
+// and alpha (bluish airglow at night, orange twilight toward the Sun).
+const GLOW_N = 120;
+const glowCol = new Float32Array((GLOW_N + 1) * 8);
+let glowGeo;
+{
+  const r = R_HORIZON * 0.99;
+  const zTop = r * Math.tan(THREE.MathUtils.degToRad(14));
+  const pos = new Float32Array((GLOW_N + 1) * 6);
+  const idx = [];
+  for (let i = 0; i <= GLOW_N; i++) {
+    const a = (i / GLOW_N) * Math.PI * 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    pos.set([x, y, 0, x, y, zTop], i * 6);
+    if (i < GLOW_N) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+  }
+  glowGeo = new THREE.BufferGeometry();
+  glowGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  glowGeo.setAttribute('color', new THREE.BufferAttribute(glowCol, 4));
+  glowGeo.setIndex(idx);
+  const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  }));
+  glow.frustumCulled = false;
+  horizonGroup.add(glow);
+}
+let lastGlowAlt = 999, lastGlowAz = 999;
+function updateHorizonGlow(sunAz, sunAlt) {
+  if (Math.abs(sunAlt - lastGlowAlt) < 0.1 && Math.abs(sunAz - lastGlowAz) < 0.5) return;
+  lastGlowAlt = sunAlt;
+  lastGlowAz = sunAz;
+  const tw = THREE.MathUtils.smoothstep(sunAlt, -18, -3);   // twilight strength
+  const day = THREE.MathUtils.smoothstep(sunAlt, -4, 4);    // washed out by daylight
+  for (let i = 0; i <= GLOW_N; i++) {
+    const az = 90 - (i / GLOW_N) * 360;                      // local +X is east
+    const toward = Math.max(0, Math.cos(THREE.MathUtils.degToRad(az - sunAz)));
+    const k = (1 - day) * (0.10 + 0.30 * tw + 0.45 * tw * toward * toward);
+    const r = 0.32 + 0.75 * tw * toward, g = 0.40 + 0.30 * tw * toward, b = 0.58 - 0.15 * tw * toward;
+    glowCol.set([r, g, b, k, r, g, b, 0], i * 8);
+  }
+  glowGeo.attributes.color.needsUpdate = true;
+}
+
 const horizonRing = new THREE.LineLoop(
   new THREE.BufferGeometry().setFromPoints(
     Array.from({ length: 128 }, (_, i) => {
       const a = (i / 128) * Math.PI * 2;
-      return new THREE.Vector3(Math.cos(a) * R_HORIZON * 0.999, Math.sin(a) * R_HORIZON * 0.999, 0);
+      return new THREE.Vector3(Math.cos(a) * R_HORIZON * 0.985, Math.sin(a) * R_HORIZON * 0.985, 0);
     })
   ),
-  new THREE.LineBasicMaterial({ color: 0x59d9a8, transparent: true, opacity: 0.7 })
+  new THREE.LineBasicMaterial({ color: 0x59d9a8, transparent: true, opacity: 0.25 })
 );
 horizonGroup.add(horizonRing);
 const cardinalLabels = [];
 for (const [text, x, y] of [['N', 0, 1], ['E', 1, 0], ['S', 0, -1], ['W', -1, 0]]) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(text, '#8ef0c4'), transparent: true, depthWrite: false }));
-  sp.position.set(x * R_HORIZON * 0.97, y * R_HORIZON * 0.97, R_HORIZON * 0.02);
+  sp.position.set(x * R_HORIZON * 0.97, y * R_HORIZON * 0.97, R_HORIZON * 0.06);
   horizonGroup.add(sp);
   cardinalLabels.push(sp);
 }
@@ -1794,6 +2077,7 @@ function updateLabelScale() {
   }
   const hc = h * 1.6;
   for (const sp of cardinalLabels) sp.scale.set(hc * 4, hc, 1);
+  for (const sp of planetLabels) sp.scale.set(h * 4.6, h * 1.15, 1);
   selMarker.scale.set(h * 1.4, h * 1.4, 1);
 }
 
@@ -1834,6 +2118,7 @@ function setObserverPosition() {
 }
 
 function applyRealState() {
+  applyPendingSlider();
   const tt = Astro.jdTTfromUT(real.jd);
 
   // Earth: opposite the Sun's geocentric direction, at the true distance
@@ -1863,6 +2148,7 @@ function applyRealState() {
   moon.rotateY(-Math.PI / 2);   // near-side texture centre (+X) faces the Earth
 
   if (starEpochJd === null || Math.abs(tt - starEpochJd) > 365.25 * 5) buildStarPositions(tt);
+  updatePlanets(tt);
 
   // Daylight: the Sun's altitude for the observer dims the stars, tints the sky
   observer.getWorldPosition(_tmpV).sub(earthPivot.position).normalize();
@@ -1961,6 +2247,8 @@ function updateObserverViewReal() {
   horizonGroup.position.copy(_obsCamPos);
   horizonGroup.quaternion.setFromRotationMatrix(_basisM.makeBasis(_east, _north, _obsUp));
   earthPivot.visible = false;
+  const sh = sceneDirToAzAlt(_sunDir);
+  updateHorizonGlow(sh.az, sh.alt);
   const vs = `${real.az.toFixed(0)}° / ${real.alt.toFixed(0)}° / ${camera.fov.toFixed(0)}°`;
   if (vs !== lastViewStr) { lastViewStr = vs; $('viewVal').textContent = vs; }
 }
@@ -2019,9 +2307,38 @@ function pickStarAt(x, y) {
     const score = d + STARS.stars[i][3] * 3;   // prefer the brighter star nearby
     if (score < bestScore) { bestScore = score; best = i; }
   }
+  // Planets compete with the stars for the click
+  let bestPlanet = null;
+  if (planetGroup.visible) {
+    for (const n of PLANET_LIST) {
+      const st = planetState[n];
+      if (st.dir.dot(_obsUp) < 0 || st.dir.dot(_fwd) <= 0) continue;
+      _proj.copy(st.dir).multiplyScalar(R_SKY).add(skyGroup.position).project(camera);
+      const sx = (_proj.x + 1) / 2 * innerWidth, sy = (1 - _proj.y) / 2 * innerHeight;
+      const d = Math.hypot(sx - x, sy - y);
+      if (d > 28) continue;
+      const score = d + st.mag * 3;
+      if (score < bestScore) { bestScore = score; bestPlanet = n; }
+    }
+  }
+  if (bestPlanet) { showPlanetInfo(bestPlanet); requestRender(); return; }
   if (best < 0) { hideStarInfo(); return; }
   showStarInfo(best);
   requestRender();
+}
+function showPlanetInfo(n) {
+  const st = planetState[n], info = PLANET_INFO[n];
+  const h = sceneDirToAzAlt(st.dir);
+  const title = lang === 'zh' ? `${info.zh} · ${info.zhModern}` : info.en;
+  const sub = lang === 'zh' ? info.en : `${info.zh} ${info.zhModern}`;
+  showInfoHtml([
+    `<b>${title}</b><div class="dim">${sub}</div>`,
+    `<div>${t('infoMag')} ${st.mag.toFixed(1)} · ${t('infoDist')} ${st.dist.toFixed(3)} au</div>`,
+    `<div>${t('infoElong')} ${st.elongation.toFixed(1)}° · ${t('infoPhase')} ${st.phase.toFixed(0)}°</div>`,
+    `<div>${t('infoAltAz')} ${h.alt.toFixed(1)}° / ${h.az.toFixed(1)}°${h.alt < 0 ? ` · ${t('belowHorizon')}` : ''}</div>`,
+  ].join(''));
+  selMarker.position.copy(st.dir).multiplyScalar(R_SKY * 0.97);
+  selMarker.visible = true;
 }
 function showStarInfo(i) {
   const s = STARS.stars[i], hip = s[0];
@@ -2063,6 +2380,7 @@ function gotoTarget(id) {
   else if (id === 'moon') { moon.getWorldPosition(_gotoDir).sub(_obsCamPos).normalize(); label = t('gotoMoon'); }
   else if (id === 'pole') { _gotoDir.copy(poleDirScene); label = t('gotoPole'); }
   else if (id.startsWith('con:')) { label = id.slice(4); _gotoDir.copy(conCentroid.get(label)); }
+  else if (id.startsWith('planet:')) { const n = id.slice(7); _gotoDir.copy(planetState[n].dir); label = planetName(n); }
   else if (id.startsWith('hip:')) {
     const i = hipIndex.get(Number(id.slice(4)));
     if (i === undefined) return;
@@ -2072,9 +2390,50 @@ function gotoTarget(id) {
   real.az = h.az;
   real.alt = THREE.MathUtils.clamp(h.alt, -25, 89.9);
   if (id.startsWith('hip:')) showStarInfo(hipIndex.get(Number(id.slice(4))));
+  else if (id.startsWith('planet:')) showPlanetInfo(id.slice(7));
   else showInfoHtml(`<b>${label}</b><div>${t('infoAltAz')} ${h.alt.toFixed(1)}° / ${h.az.toFixed(1)}°${h.alt < 0 ? ` · ${t('belowHorizon')}` : ''}</div>`);
   requestRender();
 }
+
+// ---- Moon–planet approaches (月掩 / 凌 / 犯) for the current place ----
+function buildOccultList() {
+  const sel = $('occPlanet');
+  sel.innerHTML = '';
+  for (const n of ['mars', 'venus', 'jupiter', 'saturn', 'mercury']) {
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = planetName(n);
+    sel.appendChild(o);
+  }
+}
+buildOccultList();
+function findMoonPlanetEvent(direction) {
+  const n = $('occPlanet').value;
+  $('occVal').textContent = t('occSearching');
+  setTimeout(() => {
+    const ev = Astro.findMoonPlanetApproach(n, real.jd + 0.5 * direction, direction, real.lat, real.lon);
+    if (!ev) { $('occVal').textContent = t('occNone'); return; }
+    real.jd = ev.jd;
+    jdToFields(real.jd);
+    applyRealState();
+    gotoTarget('moon');
+    obsFov = 4;
+    const kind = ev.occultation ? t('occOccult') : (ev.sep < 0.5 ? t('occGraze') : t('occNear'));
+    const title = `${t('moonWord')}${kind}${planetName(n)}`;
+    const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+    const when = `${c.year}-${String(c.month).padStart(2, '0')}-${String(c.day).padStart(2, '0')} ${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
+    $('occVal').textContent = `${title} · ${when} · ${ev.sep.toFixed(2)}°`;
+    showInfoHtml([
+      `<b>${title}</b><div class="dim">${when} ${real.basis === 'lmt' ? 'LMT' : 'UTC'}</div>`,
+      `<div>${t('infoSep')} ${ev.sep.toFixed(2)}° · ${t('moonRadiusWord')} ${ev.moonRadius.toFixed(2)}°</div>`,
+      `<div>${t('moonAltWord')} ${ev.moonAlt.toFixed(1)}° · ${t('infoAltAz').split(' / ')[1] || 'az'} ${ev.moonAz.toFixed(1)}°</div>`,
+    ].join(''));
+    requestRender();
+  }, 30);
+}
+$('occPrev').addEventListener('click', () => findMoonPlanetEvent(-1));
+$('occNext').addEventListener('click', () => findMoonPlanetEvent(1));
+$('planets').addEventListener('change', (e) => { setPlanetsVisible(e.target.checked); requestRender(); });
 
 // Keyboard: arrows look around, +/- zoom (sky view of real-sky mode)
 addEventListener('keydown', (e) => {
@@ -2120,6 +2479,9 @@ function setRealMode(on) {
   if (on === real.on) return;
   real.on = on;
   hud.classList.toggle('real', on);
+  $('modeReal').classList.toggle('on', on);
+  $('modeDemo').classList.toggle('on', !on);
+  $('hudTitle').textContent = on ? t('titleReal') : t('title');
   skyGroup.visible = on;
   observerMarker.visible = on;
   bdGroup.visible = !on && $('dipper').checked;
@@ -2130,6 +2492,7 @@ function setRealMode(on) {
   if (on) {
     jdToFields(real.jd);
     applyRealState();
+    if (sunAltDeg > -6) toEvening();   // daytime: nothing to see, jump to tonight
     if (!observerMode) setObserverMode(true);
     else { obsFov = REAL_FOV; real.az = 180; real.alt = 40; }
   } else {
@@ -2148,7 +2511,17 @@ function setRealMode(on) {
   }
   requestRender();
 }
-$('realMode').addEventListener('change', (e) => setRealMode(e.target.checked));
+$('modeReal').addEventListener('click', () => setRealMode(true));
+$('modeDemo').addEventListener('click', () => setRealMode(false));
+
+// 21:00 local mean time of the current local date (unless it is already later)
+function toEvening() {
+  const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+  if (c.hour >= 21) return;
+  real.jd = Astro.calendarToJD({ year: c.year, month: c.month, day: c.day, hour: 21 }, c.calendar) - localOffsetDays();
+  jdToFields(real.jd);
+  applyRealState();
+}
 
 function applyFields() {
   const jd = fieldsToJD();
@@ -2172,7 +2545,10 @@ $('rM1h').addEventListener('click', shiftDays(-1 / 24));
 $('rP1h').addEventListener('click', shiftDays(1 / 24));
 $('rP1d').addEventListener('click', shiftDays(1));
 
-// Calendar steps keep the local clock time; the year slider drags the year.
+// Month steps keep the calendar. Year steps move by whole tropical years, so
+// the season and the local time of night stay put and only precession (and
+// the calendar's drift) changes: no day/night flicker while scrubbing.
+const TROPICAL_YEAR = 365.24219;
 function stepCalendar(dYear, dMonth) {
   const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
   let y = c.year + dYear, m = c.month + dMonth;
@@ -2184,20 +2560,39 @@ function stepCalendar(dYear, dMonth) {
   applyRealState();
   requestRender();
 }
-$('rM100y').addEventListener('click', () => stepCalendar(-100, 0));
-$('rM1y').addEventListener('click', () => stepCalendar(-1, 0));
+function stepYears(dy) {
+  real.jd += dy * TROPICAL_YEAR;
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
+}
+$('rM100y').addEventListener('click', () => stepYears(-100));
+$('rM1y').addEventListener('click', () => stepYears(-1));
 $('rM1m').addEventListener('click', () => stepCalendar(0, -1));
 $('rP1m').addEventListener('click', () => stepCalendar(0, 1));
-$('rP1y').addEventListener('click', () => stepCalendar(1, 0));
-$('rP100y').addEventListener('click', () => stepCalendar(100, 0));
+$('rP1y').addEventListener('click', () => stepYears(1));
+$('rP100y').addEventListener('click', () => stepYears(100));
+// The slider is applied once per frame (applyPendingSlider in applyRealState)
+let sliderYearRef = null, pendingSliderYear = null;
 $('rYearSlider').addEventListener('input', (e) => {
-  const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
-  stepCalendar(Number(e.target.value) - c.year, 0);
+  if (sliderYearRef === null) sliderYearRef = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal).year;
+  pendingSliderYear = Number(e.target.value);
+  requestRender();
 });
+$('rYearSlider').addEventListener('change', () => { sliderYearRef = null; });
+function applyPendingSlider() {
+  if (pendingSliderYear === null) return;
+  real.jd += (pendingSliderYear - sliderYearRef) * TROPICAL_YEAR;
+  sliderYearRef = pendingSliderYear;
+  pendingSliderYear = null;
+  jdToFields(real.jd);
+}
 
 // Play/pause button mirrors the global Pause checkbox
 function refreshPlayButton() {
   $('rPlay').textContent = paused ? '▶ ' + t('resume') : '❙❙ ' + t('pause2');
+  $('tbPlay').textContent = paused ? '▶' : '❙❙';
+  $('tbPlay').title = paused ? t('resume') : t('pause2');
 }
 $('rPlay').addEventListener('click', () => {
   $('pause').checked = !paused;
@@ -2224,6 +2619,10 @@ function buildGotoList() {
   g1.label = t('grpXiu');
   for (const x of XIU) if (conCentroid.has(x)) add(g1, 'con:' + x, x);
   sel.appendChild(g1);
+  const gp = document.createElement('optgroup');
+  gp.label = t('grpPlanets');
+  for (const n of PLANET_LIST) add(gp, 'planet:' + n, lang === 'zh' ? `${PLANET_INFO[n].zh}（${PLANET_INFO[n].zhModern}）` : PLANET_INFO[n].en);
+  sel.appendChild(gp);
   const g2 = document.createElement('optgroup');
   g2.label = t('grpCon');
   for (const x of ['北斗', '北极', '紫微左垣', '紫微右垣', '太微左垣', '太微右垣', '天市左垣', '天市右垣']) {
@@ -2269,19 +2668,20 @@ $('rCity').addEventListener('change', (e) => {
   requestRender();
 });
 function buildCityList() {
-  const sel = $('rCity');
-  sel.innerHTML = '';
-  const none = document.createElement('option');
-  none.value = '';
-  none.textContent = t('custom');
-  sel.appendChild(none);
-  for (const c of CITIES) {
-    const o = document.createElement('option');
-    o.value = c[0];
-    o.textContent = lang === 'zh' ? c[1] : c[2];
-    sel.appendChild(o);
+  for (const sel of [$('rCity'), $('wCity')]) {
+    sel.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = t('custom');
+    sel.appendChild(none);
+    for (const c of CITIES) {
+      const o = document.createElement('option');
+      o.value = c[0];
+      o.textContent = lang === 'zh' ? c[1] : c[2];
+      sel.appendChild(o);
+    }
+    sel.value = 'xian';
   }
-  sel.value = 'xian';
 }
 buildCityList();
 $('rLat').value = real.lat;
@@ -2298,11 +2698,71 @@ function fmtRate(r) {
   return `${x}× (${(r / 86400 / 365.25).toFixed(2)} yr/s)`;
 }
 $('rRate').addEventListener('input', () => {
-  real.rate = Math.pow(10, Number($('rRate').value) / 20);
-  $('rateVal').textContent = fmtRate(real.rate);
+  setRate(Math.pow(10, Number($('rRate').value) / 20));
+});
+let yearAcc = 0;
+function setRate(rate) {
+  real.rate = rate;
+  real.yearRate = 0;
+  $('rRate').value = Math.round(20 * Math.log10(Math.max(1, rate)));
+  $('rateVal').textContent = fmtRate(rate);
+  for (const [id, r] of [['tbRt', 1], ['tb60', 60], ['tbSky', 1200]]) $(id).classList.toggle('on', Math.abs(rate - r) < 1e-6);
+  $('tbPrec').classList.remove('on');
+  requestRender();
+}
+function setPrecessionRate(yearsPerSecond) {
+  real.yearRate = yearsPerSecond;
+  yearAcc = 0;
+  $('rateVal').textContent = `${yearsPerSecond} yr/s`;
+  for (const id of ['tbRt', 'tb60', 'tbSky']) $(id).classList.remove('on');
+  $('tbPrec').classList.add('on');
+  requestRender();
+}
+$('rateVal').textContent = fmtRate(real.rate);
+
+// ---- Bottom toolbar ----
+$('tbPlay').addEventListener('click', () => $('rPlay').click());
+$('tbRt').addEventListener('click', () => setRate(1));
+$('tb60').addEventListener('click', () => setRate(60));
+$('tbSky').addEventListener('click', () => setRate(1200));          // 20 min/s: the sky visibly wheels
+$('tbPrec').addEventListener('click', () => setPrecessionRate(100)); // a century per second
+$('tbNow').addEventListener('click', () => $('rNow').click());
+$('tbTonight').addEventListener('click', () => { toEvening(); requestRender(); });
+
+// ---- Welcome card: choose an era and a place, then start ----
+function updateWelcomeYear(y) {
+  $('wYearNum').textContent = y > 0 ? String(y) : String(1 - y);
+  $('wYearHint').textContent = y > 0 ? '' : t('bcHint');
+}
+{
+  const now = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
+  $('wYear').value = now.year;
+  $('wYearIn').value = now.year;
+  $('wMonth').value = now.month;
+  $('wDay').value = now.day;
+  updateWelcomeYear(now.year);
+}
+$('wYear').addEventListener('input', (e) => { $('wYearIn').value = e.target.value; updateWelcomeYear(Number(e.target.value)); });
+$('wYearIn').addEventListener('change', (e) => {
+  const y = Math.max(-3000, Math.min(3000, Number(e.target.value) || 0));
+  $('wYear').value = y; $('wYearIn').value = y; updateWelcomeYear(y);
+});
+$('wCity').addEventListener('change', (e) => {
+  $('rCity').value = e.target.value;
+  $('rCity').dispatchEvent(new Event('change'));
+});
+function hideWelcome() { $('welcome').classList.add('hidden'); }
+$('wStart').addEventListener('click', () => {
+  const year = Number($('wYearIn').value), month = Number($('wMonth').value) || 1, day = Number($('wDay').value) || 1;
+  if (Number.isFinite(year)) {
+    real.jd = Astro.calendarToJD({ year, month, day, hour: 21 }, real.cal) - localOffsetDays();
+  }
+  hideWelcome();
+  if (real.on) { jdToFields(real.jd); applyRealState(); }
+  else setRealMode(true);
   requestRender();
 });
-$('rateVal').textContent = fmtRate(real.rate);
+$('wDemo').addEventListener('click', () => { hideWelcome(); setRealMode(false); requestRender(); });
 $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
 $('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
 
@@ -2355,7 +2815,15 @@ function updateScene(dt) {
 
   if (real.on) {
     // Real-sky mode: the calendar clock drives everything (see PLAN.md).
-    real.jd += real.rate * dt / 86400;
+    // The precession preset advances by whole tropical years so the season
+    // and the time of night stay put while the pole wanders.
+    if (real.yearRate > 0) {
+      yearAcc += real.yearRate * dt;
+      const n = Math.floor(yearAcc);
+      if (n > 0) { real.jd += n * TROPICAL_YEAR; yearAcc -= n; }
+    } else {
+      real.jd += real.rate * dt / 86400;
+    }
     applyRealState();
   } else {
     // Orbit: Earth's center travels on a circle in the ecliptic (XZ) plane,

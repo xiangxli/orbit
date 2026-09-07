@@ -16,8 +16,12 @@ see that sky, with the Chinese constellations (三垣二十八宿). Open `index.
 
 ### Real sky (date & place)
 
-Tick **Real sky** in the panel. The demo's free-running clock is replaced by a real
-calendar clock (UT Julian Day) that drives everything:
+The page opens with a card to choose an era and a place; **Start** enters the real sky at
+21:00 local mean time facing south (**Demo mode** goes to the orbit demonstration; the
+header switch toggles between the two). The panel has collapsible sections (time, place,
+sky events, display, demo) and a bottom toolbar with play/pause, rate presets (real time,
+1 min/s, wheeling sky, precession), Now and Tonight. The demo's free-running clock is
+replaced by a real calendar clock (UT Julian Day) that drives everything:
 
 - **Date/time**: year (astronomical numbering: 0 = 1 BC, −1 = 2 BC), month, day,
   hour, minute. Julian calendar before 1582-10-15, Gregorian after (or force either).
@@ -30,11 +34,23 @@ calendar clock (UT Julian Day) that drives everything:
   Deep Star Maps (moonlight and twilight dim it); 318 Chinese xingguan with lines, the 28
   lunar mansions named in gold and the smaller asterisms named once you zoom in; the Moon
   at its true position and distance (phase from the lighting); the Sun.
-- **Exploring**: a year slider (3000 BC to AD 3000) and ±1 month / year / century steps
-  to watch precession; a ticking clock with play/pause; click any star for its names,
-  magnitude, xingguan and altitude/azimuth; a "Go to" list (Sun, Moon, pole, the 28
-  mansions, major asterisms, bright stars) that turns the view; arrow keys look around,
-  +/− zoom.
+- **Planets**: the five naked-eye planets (辰星 Mercury, 太白 Venus, 荧惑 Mars, 岁星
+  Jupiter, 镇星 Saturn) from JPL's approximate Keplerian elements (Standish & Williams;
+  Mars to ~100″ over 3000 BC–3000 AD), with magnitudes, labels, click info and "Go to".
+- **Moon meets a planet** (月掩 / 凌 / 犯): pick a planet and press ◀ / ▶ to jump to the
+  previous / next close approach visible from the current place, seen from the ground with
+  the Moon's parallax (the Moon is a true-scale body at its true distance, so an occultation
+  is real 3D geometry). The view zooms to 4°; 掩 = behind the Moon's disc, 凌 = within 0.5°,
+  犯 = within 1°. Verified against the lunar occultations of Mars of 2022-12-08 (London)
+  and 2025-01-14 (New York).
+- **Exploring**: a year slider (3000 BC to AD 3000) and ±1 year / century steps that move by
+  whole tropical years (season and time of night stay put, only precession changes),
+  ±1 month calendar steps; a ticking clock with play/pause; click any star or planet for
+  its names, magnitude, xingguan and altitude/azimuth; a "Go to" list (Sun, Moon, pole,
+  planets, the 28 mansions, major asterisms, bright stars) that turns the view; arrow keys
+  look around, +/− zoom. Entering real-sky mode in daytime jumps to 21:00 local.
+- **Horizon**: a low ridge of hills the stars set behind, and an airglow / twilight band
+  that warms up toward the Sun at dusk.
 - **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
   only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
   aberration or refraction (all < 1′ except refraction near the horizon).
@@ -67,6 +83,7 @@ from `file://`. Three.js itself comes from a CDN.
   and Sun Xiaochun & Kistemaker's *The Chinese Sky during the Han*) — CC BY-SA.
 - Milky Way: NASA/Goddard Scientific Visualization Studio, [Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851)
   (Ernie Wright), `milkyway_2020_4k.exr` converted to sRGB — public domain.
+- Planets: E.M. Standish & J.G. Williams, [Approximate Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html), JPL.
 - Algorithms: Jean Meeus, *Astronomical Algorithms*, 2nd ed.; ΔT polynomials from Espenak & Meeus.
 
 Regenerate the data files with `python3 tools/build_data.py` after downloading the sources

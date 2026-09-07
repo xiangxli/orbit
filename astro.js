@@ -516,7 +516,178 @@
     return eqToHorizontal(ra, dec, lst(jdUT, lon), lat);
   }
 
+  // ---------------------------------------------------------------------------
+  // Planets  (JPL "Approximate Positions of the Planets", Standish & Williams 1992,
+  // https://ssd.jpl.nasa.gov/planets/approx_pos.html). Keplerian elements and
+  // rates per Julian century, mean ecliptic and equinox of J2000.
+  // Table 1 is used inside 1800–2050, Table 2 (with the extra terms in M for
+  // Jupiter and Saturn) elsewhere. Quoted accuracy over 3000 BC – 3000 AD:
+  // Mercury 20″, Venus 40″, Earth 40″, Mars 100″, Jupiter 600″, Saturn 1000″.
+  // ---------------------------------------------------------------------------
+  // [a (au), e, I, L, ϖ, Ω] (deg), then rates per century, then [b, c, s, f]
+  const PLANETS_T1 = {
+    mercury: [[0.38709927, 0.20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593],
+              [0.00000037, 0.00001906, -0.00594749, 149472.67411175, 0.16047689, -0.12534081]],
+    venus:   [[0.72333566, 0.00677672, 3.39467605, 181.97909950, 131.60246718, 76.67984255],
+              [0.00000390, -0.00004107, -0.00078890, 58517.81538729, 0.00268329, -0.27769418]],
+    earth:   [[1.00000261, 0.01671123, -0.00001531, 100.46457166, 102.93768193, 0.0],
+              [0.00000562, -0.00004392, -0.01294668, 35999.37244981, 0.32327364, 0.0]],
+    mars:    [[1.52371034, 0.09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
+              [0.00001847, 0.00007882, -0.00813131, 19140.30268499, 0.44441088, -0.29257343]],
+    jupiter: [[5.20288700, 0.04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
+              [-0.00011607, -0.00013253, -0.00183714, 3034.74612775, 0.21252668, 0.20469106]],
+    saturn:  [[9.53667594, 0.05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
+              [-0.00125060, -0.00050991, 0.00193609, 1222.49362201, -0.41897216, -0.28867794]],
+  };
+  const PLANETS_T2 = {
+    mercury: [[0.38709843, 0.20563661, 7.00559432, 252.25166724, 77.45771895, 48.33961819],
+              [0.00000000, 0.00002123, -0.00590158, 149472.67486623, 0.15940013, -0.12214182]],
+    venus:   [[0.72332102, 0.00676399, 3.39777545, 181.97970850, 131.76755713, 76.67261496],
+              [-0.00000026, -0.00005107, 0.00043494, 58517.81560260, 0.05679648, -0.27274174]],
+    earth:   [[1.00000018, 0.01673163, -0.00054346, 100.46691572, 102.93005885, -5.11260389],
+              [-0.00000003, -0.00003661, -0.01337178, 35999.37306329, 0.31795260, -0.24123856]],
+    mars:    [[1.52371243, 0.09336511, 1.85181869, -4.56813164, -23.91744784, 49.71320984],
+              [0.00000097, 0.00009149, -0.00724757, 19140.29934243, 0.45223625, -0.26852431]],
+    jupiter: [[5.20248019, 0.04853590, 1.29861416, 34.33479152, 14.27495244, 100.29282654],
+              [-0.00002864, 0.00018026, -0.00322699, 3034.90371757, 0.18199196, 0.13024619],
+              [-0.00012452, 0.06064060, -0.35635438, 38.35125000]],
+    saturn:  [[9.54149883, 0.05550825, 2.49424102, 50.07571329, 92.86136063, 113.63998702],
+              [-0.00003065, -0.00032044, 0.00451969, 1222.11494724, 0.54179478, -0.25015002],
+              [0.00025899, -0.13434469, 0.87320147, 38.35125000]],
+  };
+  const PLANET_NAMES = ['mercury', 'venus', 'mars', 'jupiter', 'saturn'];
+  const EPS_JPL = 23.43928;
+
+  // Heliocentric position (au) in the J2000 ecliptic frame.
+  function heliocentricEclJ2000(name, jdTT) {
+    const T = (jdTT - J2000) / JULIAN_CENTURY;
+    const year = 2000 + T * 100;
+    const tab = (year >= 1800 && year <= 2050) ? PLANETS_T1 : PLANETS_T2;
+    const [el, rate, extra] = tab[name];
+    const a = el[0] + rate[0] * T, e = el[1] + rate[1] * T, I = el[2] + rate[2] * T;
+    const L = el[3] + rate[3] * T, peri = el[4] + rate[4] * T, node = el[5] + rate[5] * T;
+    const omega = peri - node;
+    let M = L - peri;
+    if (extra) {
+      const [b, c, s, f] = extra;
+      M += b * T * T + c * cos(f * T) + s * sin(f * T);
+    }
+    M = ((M % 360) + 540) % 360 - 180;
+    const eStar = e * RAD;
+    let E = M + eStar * sin(M);
+    for (let i = 0; i < 30; i++) {
+      const dM = M - (E - eStar * sin(E));
+      const dE = dM / (1 - e * cos(E));
+      E += dE;
+      if (Math.abs(dE) < 1e-8) break;
+    }
+    const xp = a * (cos(E) - e), yp = a * Math.sqrt(1 - e * e) * sin(E);
+    const cw = cos(omega), sw = sin(omega), cO = cos(node), sO = sin(node), cI = cos(I), sI = sin(I);
+    return [
+      (cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp,
+      (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp,
+      (sw * sI) * xp + (cw * sI) * yp,
+    ];
+  }
+
+  // Visual magnitude (Meeus ch. 41, Müller's formulae; Saturn's ring term averaged).
+  function planetMagnitude(name, r, d, i) {
+    const base = 5 * Math.log10(r * d);
+    switch (name) {
+      case 'mercury': return -0.42 + base + 0.0380 * i - 0.000273 * i * i + 0.000002 * i * i * i;
+      case 'venus': return -4.40 + base + 0.0009 * i + 0.000239 * i * i - 0.00000065 * i * i * i;
+      case 'mars': return -1.52 + base + 0.016 * i;
+      case 'jupiter': return -9.40 + base + 0.005 * i;
+      case 'saturn': return -8.88 + base - 0.6;
+      default: return 0;
+    }
+  }
+
+  // Geocentric direction (unit vector, J2000 equatorial), distance (au),
+  // heliocentric distance, phase angle, elongation and magnitude.
+  // The Earth is taken at the Earth–Moon barycentre (offset < 4700 km).
+  function planetVectorJ2000(name, jdTT) {
+    const p = heliocentricEclJ2000(name, jdTT);
+    const eb = heliocentricEclJ2000('earth', jdTT);
+    const g = [p[0] - eb[0], p[1] - eb[1], p[2] - eb[2]];
+    const dist = Math.hypot(g[0], g[1], g[2]);
+    const r = Math.hypot(p[0], p[1], p[2]);
+    const R = Math.hypot(eb[0], eb[1], eb[2]);
+    const eq = matVec(rotX(EPS_JPL), g);
+    const clamp1 = (x) => Math.max(-1, Math.min(1, x));
+    const phase = Math.acos(clamp1((r * r + dist * dist - R * R) / (2 * r * dist))) * RAD;
+    const elongation = Math.acos(clamp1((R * R + dist * dist - r * r) / (2 * R * dist))) * RAD;
+    return { v: eq.map((x) => x / dist), dist, r, R, phase, elongation, mag: planetMagnitude(name, r, dist, phase) };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Topocentric Moon and Moon–planet approaches
+  // ---------------------------------------------------------------------------
+  const EARTH_RADIUS_KM = 6371;
+  const MOON_RADIUS_KM = 1737.4;
+
+  // Observer's geocentric position (Earth radii; spherical Earth) in J2000 equatorial coords.
+  function observerVectorJ2000(jdUT, lat, lon) {
+    const th = lst(jdUT, lon);
+    const vDate = [cos(lat) * cos(th), cos(lat) * sin(th), sin(lat)];
+    return matVec(transpose3(precessionMatrix(jdTTfromUT(jdUT))), vDate);
+  }
+
+  // The Moon as seen from a place: direction (J2000 equatorial) and distance (km).
+  // Parallax is up to ~1°, which is what makes occultations local events.
+  function moonTopocentricJ2000(jdUT, lat, lon) {
+    const m = moonVectorJ2000(jdTTfromUT(jdUT));
+    const o = observerVectorJ2000(jdUT, lat, lon);
+    const k = m.dist / EARTH_RADIUS_KM;
+    const t = [m.v[0] * k - o[0], m.v[1] * k - o[1], m.v[2] * k - o[2]];
+    const d = Math.hypot(t[0], t[1], t[2]);
+    return { v: t.map((x) => x / d), dist: d * EARTH_RADIUS_KM, geocentric: m };
+  }
+
+  // First Moon–planet close approach from jdStart, scanning forward
+  // (direction +1) or backward (−1) for up to maxDays. Returns the time of
+  // minimum topocentric separation, the separation, and whether it is an
+  // occultation (separation smaller than the Moon's apparent radius).
+  // With visible=true only approaches with the Moon up and the Sun down count.
+  function findMoonPlanetApproach(name, jdStart, direction, lat, lon, opts = {}) {
+    const maxSep = opts.maxSepDeg ?? 1.0;
+    const maxDays = opts.maxDays ?? 365.25 * 30;
+    const visible = opts.visible ?? true;
+    const sep = (jd) => angularDistance(moonTopocentricJ2000(jd, lat, lon).v, planetVectorJ2000(name, jdTTfromUT(jd)).v);
+    const step = 0.25 * (direction < 0 ? -1 : 1);   // 6 h
+    let s2 = sep(jdStart), s1 = sep(jdStart + step);
+    for (let jd = jdStart + 2 * step; Math.abs(jd - jdStart) <= maxDays; jd += step) {
+      const s0 = sep(jd);
+      if (s1 < s2 && s1 <= s0 && s1 < 8) {
+        // local minimum near jd - step: golden-section search on the bracket
+        let a = Math.min(jd - 2 * step, jd), b = Math.max(jd - 2 * step, jd);
+        const gr = (Math.sqrt(5) - 1) / 2;
+        let c = b - gr * (b - a), d = a + gr * (b - a), fc = sep(c), fd = sep(d);
+        for (let i = 0; i < 30; i++) {
+          if (fc < fd) { b = d; d = c; fd = fc; c = b - gr * (b - a); fc = sep(c); }
+          else { a = c; c = d; fc = fd; d = a + gr * (b - a); fd = sep(d); }
+        }
+        const t = (a + b) / 2, s = sep(t);
+        if (s <= maxSep) {
+          const moon = moonTopocentricJ2000(t, lat, lon);
+          const mh = j2000ToHorizontal(moon.v, t, lat, lon);
+          const sh = j2000ToHorizontal(sunVectorJ2000(jdTTfromUT(t)).v, t, lat, lon);
+          if (!visible || (mh.alt > 0 && sh.alt < 0)) {
+            const moonRadius = Math.asin(MOON_RADIUS_KM / moon.dist) * RAD;
+            return { jd: t, sep: s, moonRadius, occultation: s < moonRadius,
+                     moonAlt: mh.alt, moonAz: mh.az, sunAlt: sh.alt };
+          }
+        }
+      }
+      s2 = s1;
+      s1 = s0;
+    }
+    return null;
+  }
+
   return {
+    PLANET_NAMES, heliocentricEclJ2000, planetVectorJ2000, planetMagnitude,
+    observerVectorJ2000, moonTopocentricJ2000, findMoonPlanetApproach,
     DEG, RAD, J2000, JULIAN_CENTURY, GREGORIAN_START_JD, EPS_J2000,
     norm360,
     calendarToJD, jdToCalendar, isGregorianDate, decimalYear,
