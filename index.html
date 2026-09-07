@@ -94,6 +94,9 @@
   #hud:not(.real) .realOnly { display: none; }
   #hud.real .demoOnly { opacity: 0.35; pointer-events: none; }
   #clockVal { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .ptab { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; font-size: 11px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .ptab b { color: var(--text); font-weight: 500; }
+  .ptab .down { opacity: 0.45; }
 
   /* Bottom toolbar (real-sky mode) */
   #toolbar {
@@ -233,6 +236,7 @@
         <div class="stat"><span id="lblLst">Local sidereal time:</span> <span id="lstVal">-</span></div>
         <div class="stat"><span id="lblSunAlt">Sun alt / az:</span> <span id="sunAltVal">-</span></div>
         <div class="stat"><span id="lblMoonPhase">Moon:</span> <span id="moonPhaseVal">-</span></div>
+        <div class="ptab" id="planetVals"></div>
         <div class="stat"><span id="lblPole">Pole star:</span> <span id="poleVal">-</span></div>
         <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
       </details>
@@ -305,10 +309,11 @@
 <div id="starInfo" class="glass"></div>
 
 <!-- Classic scripts (not modules) so the page still works from file:// -->
-<script src="astro.js"></script>
-<script src="stars.js"></script>
-<script src="constellations.js"></script>
-<script src="milkyway.js"></script>
+<!-- ?v= busts browser caches when the local files change; bump it with them -->
+<script src="astro.js?v=3"></script>
+<script src="stars.js?v=3"></script>
+<script src="constellations.js?v=3"></script>
+<script src="milkyway.js?v=3"></script>
 
 <script type="importmap">
 {
@@ -498,7 +503,8 @@ const moon = new THREE.Mesh(
   new THREE.SphereGeometry(MOON_RADIUS, 48, 48),
   new THREE.MeshPhongMaterial({
     map: loader.load('https://threejs.org/examples/textures/planets/moon_1024.jpg'),
-    emissive: new THREE.Color(0x0a0a0a),
+    color: new THREE.Color(1.8, 1.8, 1.8),      // the lit limb reads white, like the real crescent
+    emissive: new THREE.Color(0x0e1116),        // faint earthshine on the night side
     shininess: 2,
   })
 );
@@ -981,7 +987,7 @@ const I18N = {
     infoMag: 'mag', infoCon: 'in', infoAltAz: 'alt / az', belowHorizon: 'below the horizon',
     lblPlanets: 'Planets (五星)', grpPlanets: 'Planets',
     lblOccult: 'Moon meets', occSearching: 'searching…', occNone: 'none visible within 30 years',
-    moonWord: 'Moon ', occOccult: 'occults ', occGraze: 'grazes ', occNear: 'passes ',
+    moonWord: 'Moon ', occOccult: 'occults ', occGraze: 'grazes ', occNear: 'passes ', occConj: 'near ', occMin: 'closest',
     infoSep: 'separation', moonRadiusWord: 'Moon radius', moonAltWord: 'Moon alt', infoDist: 'distance',
     infoElong: 'elongation', infoPhase: 'phase',
   },
@@ -1062,8 +1068,8 @@ const I18N = {
     lblView: '\u89C6\u7EBF \u65B9\u4F4D / \u9AD8\u5EA6 / \u89C6\u573A\uFF1A',
     infoMag: '\u661F\u7B49', infoCon: '\u5C5E', infoAltAz: '\u9AD8\u5EA6 / \u65B9\u4F4D', belowHorizon: '\u5728\u5730\u5E73\u7EBF\u4E0B',
     lblPlanets: '\u4E94\u5927\u884C\u661F', grpPlanets: '\u4E94\u661F',
-    lblOccult: '\u6708\u63A9 / \u51CC', occSearching: '\u641C\u7D22\u4E2D\u2026', occNone: '30 \u5E74\u5185\u6CA1\u6709\u53EF\u89C1\u7684',
-    moonWord: '\u6708', occOccult: '\u63A9', occGraze: '\u51CC', occNear: '\u72AF',
+    lblOccult: '\u6708\u63A9 / \u51CC / \u5408', occSearching: '\u641C\u7D22\u4E2D\u2026', occNone: '30 \u5E74\u5185\u6CA1\u6709\u53EF\u89C1\u7684',
+    moonWord: '\u6708', occOccult: '\u63A9', occGraze: '\u51CC', occNear: '\u72AF', occConj: '\u5408', occMin: '\u6700\u8FD1',
     infoSep: '\u89D2\u8DDD', moonRadiusWord: '\u6708\u9762\u534A\u5F84', moonAltWord: '\u6708\u9AD8', infoDist: '\u8DDD\u79BB',
     infoElong: '\u8DDD\u65E5', infoPhase: '\u76F8\u89D2',
   },
@@ -1775,8 +1781,12 @@ function makePlanetLayer(mat) {
   skyGroup.add(pts);
   return pts;
 }
-const planetPts = makePlanetLayer(starMat);
-const planetHaloPts = makePlanetLayer(haloMat);
+// Planets get their own material copies so they can grow faster than stars
+// when zooming in (they are discs, not points).
+const planetMat = starMat.clone();
+const planetHaloMat = haloMat.clone();
+const planetPts = makePlanetLayer(planetMat);
+const planetHaloPts = makePlanetLayer(planetHaloMat);
 const planetGeo = planetPts.geometry;
 const planetHaloGeo = planetHaloPts.geometry;
 const planetLabels = [];
@@ -2079,6 +2089,9 @@ function updateLabelScale() {
   for (const sp of cardinalLabels) sp.scale.set(hc * 4, hc, 1);
   for (const sp of planetLabels) sp.scale.set(h * 4.6, h * 1.15, 1);
   selMarker.scale.set(h * 1.4, h * 1.4, 1);
+  // The Moon label sits at the Moon's distance, not on the sky sphere
+  const hm = MOON_ORBIT * Math.tan(THREE.MathUtils.degToRad(1.3 * camera.fov / 60));
+  moonLabel.scale.set(hm * 4, hm, 1);
 }
 
 // Sky sphere rides the camera: zero parallax, stars at infinity.
@@ -2088,6 +2101,19 @@ function syncSky() {
   updateLabelScale();
 }
 
+// Moon glow and label (real-sky mode): the disc is only 0.5° wide, so at a
+// wide field a soft glow that grows with the illuminated fraction makes the
+// Moon findable; it fades out when zoomed in so the phase itself shows.
+const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: makeStarGlow(255, 250, 240), blending: THREE.AdditiveBlending, transparent: true,
+  depthWrite: false, depthTest: false, opacity: 0,
+}));
+moonGlow.renderOrder = 3;
+moonGlow.visible = false;
+moonGroup.add(moonGlow);
+const moonLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(lang === 'zh' ? '月' : 'Moon', '#eef4ff'), transparent: true, depthWrite: false, depthTest: false, opacity: 0.95 }));
+moonLabel.visible = false;
+moonGroup.add(moonLabel);
 // Observer marker on the globe (seen in the free view of real-sky mode)
 const observerMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.012, 12, 12),
@@ -2156,14 +2182,34 @@ function applyRealState() {
   const night = observerMode ? THREE.MathUtils.clamp(1 - (sunAltDeg + 18) / 24, 0.06, 1) : 1;
   starMat.uniforms.uOpacity.value = night;
   haloMat.uniforms.uOpacity.value = night;
+  planetMat.uniforms.uOpacity.value = night;
+  planetHaloMat.uniforms.uOpacity.value = night;
+  // Zooming in enlarges the points a little (stars) or a lot (planets, which
+  // are discs): at a 4° field Mars is a small glowing disc, not a 6 px dot.
+  const zoom = observerMode ? Math.max(1, REAL_FOV / camera.fov) : 1;
+  const pr = Math.min(devicePixelRatio, 2);
+  starMat.uniforms.uScale.value = haloMat.uniforms.uScale.value = pr * Math.min(3, Math.pow(zoom, 0.3));
+  planetMat.uniforms.uScale.value = pr * Math.min(3, Math.pow(zoom, 0.45));   // core grows into a small disc
+  planetHaloMat.uniforms.uScale.value = pr;                                     // halo stays put
   lineMat.opacity = 0.45 * night;
   // Moonlight washes out the Milky Way when a bright Moon is up (_tmpV = local up)
   const moonAlt = Math.asin(THREE.MathUtils.clamp(_tmpV.dot(_moonDir), -1, 1)) * 180 / Math.PI;
   const moonFrac = (1 - Math.cos(_sunDir.angleTo(_moonDir))) / 2;
   const moonGlare = moonAlt > 0 ? moonFrac * THREE.MathUtils.smoothstep(moonAlt, 0, 10) : 0;
-  // The Milky Way needs a dark sky: gone above -10°, full below -18° (astronomical twilight)
+  // The Milky Way needs a dark sky: gone above -10°, full below -18° (astronomical twilight).
+  // It also fades when zoomed in: the diffuse band is imperceptible at telescope scale
+  // and the 4k texture would only show as blotches.
   const mwNight = observerMode ? THREE.MathUtils.clamp((-sunAltDeg - 10) / 8, 0, 1) : 1;
-  milkyMat.opacity = MILKY_GAIN * mwNight * (1 - 0.5 * moonGlare);
+  const mwZoom = observerMode ? THREE.MathUtils.clamp((camera.fov - 4) / 16, 0, 1) : 1;
+  milkyMat.opacity = MILKY_GAIN * mwNight * mwZoom * (1 - 0.5 * moonGlare);
+  // Moon glow (grows with the lit fraction, fades out when zoomed in) and label
+  const glowZoom = THREE.MathUtils.clamp((camera.fov - 8) / 22, 0, 1);
+  moonGlow.visible = moonLabel.visible = observerMode;
+  moonGlow.position.copy(moon.position);
+  moonGlow.material.opacity = (0.25 + 0.55 * moonFrac) * glowZoom * night;
+  moonGlow.scale.setScalar(MOON_RADIUS * (6 + 10 * moonFrac));
+  // label just above the disc along the observer's local vertical (_tmpV = up)
+  moonLabel.position.copy(moon.position).addScaledVector(_tmpV, MOON_RADIUS * 2.2 + moon.position.length() * Math.tan(THREE.MathUtils.degToRad(0.9 * camera.fov / 60)));
   if (Math.abs(night - lastNight) > 0.02) {   // names fade with the stars by day
     lastNight = night;
     for (const sp of conLabels.children) sp.material.opacity = (sp.userData.major ? 0.95 : 0.7) * night;
@@ -2193,9 +2239,22 @@ function updateRealReadouts(tt, sv) {
   const sh = Astro.j2000ToHorizontal(sv.v, real.jd, real.lat, real.lon);
   $('sunAltVal').textContent = `${sh.alt.toFixed(1)}° / ${sh.az.toFixed(0)}°`;
   const ill = Astro.moonIllumination(tt);
+  // Moon as seen from the place (parallax included), then the five planets
+  const moonTopo = Astro.moonTopocentricJ2000(real.jd, real.lat, real.lon);
+  const mh = Astro.j2000ToHorizontal(moonTopo.v, real.jd, real.lat, real.lon);
   $('moonPhaseVal').textContent = t('moonPhase')
     .replace('{p}', (ill.fraction * 100).toFixed(0))
-    .replace('{e}', ill.elongation.toFixed(0));
+    .replace('{e}', ill.elongation.toFixed(0))
+    + ` · ${mh.alt.toFixed(1)}° / ${mh.az.toFixed(0)}°${mh.alt < 0 ? ' ↓' : ''}`;
+  const rows = [];
+  for (const n of PLANET_LIST) {
+    const p = Astro.planetVectorJ2000(n, tt);
+    const h = Astro.j2000ToHorizontal(p.v, real.jd, real.lat, real.lon);
+    const cls = h.alt < 0 ? ' class="down"' : '';
+    const name = lang === 'zh' ? `${PLANET_INFO[n].zh} ${PLANET_INFO[n].zhModern}` : PLANET_INFO[n].en;
+    rows.push(`<b${cls}>${name}</b><span${cls}>${h.alt.toFixed(1)}° / ${h.az.toFixed(0)}°${h.alt < 0 ? ' ↓' : ''}</span><span${cls}>${p.mag.toFixed(1)}</span>`);
+  }
+  $('planetVals').innerHTML = rows.join('');
   // The epoch's pole star: nearest catalog star (V <= 4.5) to the pole of date
   const pole = Astro.poleOfDate(tt);
   let best = -1, bestD = 1e9;
@@ -2411,22 +2470,28 @@ function findMoonPlanetEvent(direction) {
   const n = $('occPlanet').value;
   $('occVal').textContent = t('occSearching');
   setTimeout(() => {
-    const ev = Astro.findMoonPlanetApproach(n, real.jd + 0.5 * direction, direction, real.lat, real.lon);
+    // Up to 3°: 掩 behind the disc, 凌 within 0.5°, 犯 within 1°, 合 otherwise
+    const ev = Astro.findMoonPlanetApproach(n, real.jd + 0.5 * direction, direction, real.lat, real.lon, { maxSepDeg: 3 });
     if (!ev) { $('occVal').textContent = t('occNone'); return; }
+    // Jump to the moment of closest approach; if the pair is below the horizon
+    // then, the user steps the clock to a visible time.
     real.jd = ev.jd;
     jdToFields(real.jd);
     applyRealState();
     gotoTarget('moon');
-    obsFov = 4;
-    const kind = ev.occultation ? t('occOccult') : (ev.sep < 0.5 ? t('occGraze') : t('occNear'));
+    obsFov = THREE.MathUtils.clamp(ev.sep * 2.5, 3, 14);   // both bodies in frame
+    const kind = ev.occultation ? t('occOccult') : (ev.sep < 0.5 ? t('occGraze') : (ev.sep < 1 ? t('occNear') : t('occConj')));
     const title = `${t('moonWord')}${kind}${planetName(n)}`;
-    const c = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
-    const when = `${c.year}-${String(c.month).padStart(2, '0')}-${String(c.day).padStart(2, '0')} ${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
+    const fmt = (jd) => {
+      const c = Astro.jdToCalendar(jd + localOffsetDays(), real.cal);
+      return `${c.year}-${String(c.month).padStart(2, '0')}-${String(c.day).padStart(2, '0')} ${String(c.hour).padStart(2, '0')}:${String(c.minute).padStart(2, '0')}`;
+    };
+    const when = fmt(ev.jd);
     $('occVal').textContent = `${title} · ${when} · ${ev.sep.toFixed(2)}°`;
     showInfoHtml([
       `<b>${title}</b><div class="dim">${when} ${real.basis === 'lmt' ? 'LMT' : 'UTC'}</div>`,
       `<div>${t('infoSep')} ${ev.sep.toFixed(2)}° · ${t('moonRadiusWord')} ${ev.moonRadius.toFixed(2)}°</div>`,
-      `<div>${t('moonAltWord')} ${ev.moonAlt.toFixed(1)}° · ${t('infoAltAz').split(' / ')[1] || 'az'} ${ev.moonAz.toFixed(1)}°</div>`,
+      `<div>${t('moonAltWord')} ${ev.moonAlt.toFixed(1)}° · ${t('infoAltAz').split(' / ')[1] || 'az'} ${ev.moonAz.toFixed(1)}°${ev.moonAlt < 0 ? ` · ${t('belowHorizon')}` : ''}</div>`,
     ].join(''));
     requestRender();
   }, 30);
@@ -2501,6 +2566,7 @@ function setRealMode(on) {
     earthPivot.visible = true;
     renderer.setClearColor(0x000000);
     starMat.uniforms.uOpacity.value = 1;
+    starMat.uniforms.uScale.value = haloMat.uniforms.uScale.value = Math.min(devicePixelRatio, 2);
     poleDirScene.copy(POLARIS_DIR);
     earthPivot.quaternion.setFromEuler(new THREE.Euler(0, 0, -EARTH_TILT));
     earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, -Math.sin(angle) * ORBIT_RADIUS);

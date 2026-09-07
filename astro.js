@@ -654,6 +654,12 @@
     const maxDays = opts.maxDays ?? 365.25 * 30;
     const visible = opts.visible ?? true;
     const sep = (jd) => angularDistance(moonTopocentricJ2000(jd, lat, lon).v, planetVectorJ2000(name, jdTTfromUT(jd)).v);
+    // Observable: Moon above the horizon, Sun below -3°
+    const seen = (jd) => {
+      const m = j2000ToHorizontal(moonTopocentricJ2000(jd, lat, lon).v, jd, lat, lon);
+      const su = j2000ToHorizontal(sunVectorJ2000(jdTTfromUT(jd)).v, jd, lat, lon);
+      return m.alt > 0 && su.alt < -3;
+    };
     const step = 0.25 * (direction < 0 ? -1 : 1);   // 6 h
     let s2 = sep(jdStart), s1 = sep(jdStart + step);
     for (let jd = jdStart + 2 * step; Math.abs(jd - jdStart) <= maxDays; jd += step) {
@@ -672,10 +678,21 @@
           const moon = moonTopocentricJ2000(t, lat, lon);
           const mh = j2000ToHorizontal(moon.v, t, lat, lon);
           const sh = j2000ToHorizontal(sunVectorJ2000(jdTTfromUT(t)).v, t, lat, lon);
-          if (!visible || (mh.alt > 0 && sh.alt < 0)) {
+          // "Visible" if the pair can be seen within ±1.5 h of closest approach
+          // (the pair stays close for hours). viewJd is the nearest such moment.
+          let viewJd = seen(t) ? t : null;
+          for (let k = 1; k <= 9 && viewJd === null; k++) {
+            const dk = k * 10 / 1440;
+            if (seen(t + dk)) viewJd = t + dk;
+            else if (seen(t - dk)) viewJd = t - dk;
+          }
+          if (!visible || viewJd !== null) {
+            if (viewJd === null) viewJd = t;
             const moonRadius = Math.asin(MOON_RADIUS_KM / moon.dist) * RAD;
+            const vh = j2000ToHorizontal(moonTopocentricJ2000(viewJd, lat, lon).v, viewJd, lat, lon);
             return { jd: t, sep: s, moonRadius, occultation: s < moonRadius,
-                     moonAlt: mh.alt, moonAz: mh.az, sunAlt: sh.alt };
+                     moonAlt: mh.alt, moonAz: mh.az, sunAlt: sh.alt,
+                     viewJd, viewSep: viewJd === t ? s : sep(viewJd), viewMoonAlt: vh.alt, viewMoonAz: vh.az };
           }
         }
       }
