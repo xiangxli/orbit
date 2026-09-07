@@ -56,6 +56,26 @@
   #todayRow { cursor: pointer; }
   #todayRow:hover { color: #ffffff; text-shadow: 0 0 8px rgba(255, 210, 122, 0.9), 0 0 16px rgba(255, 210, 122, 0.5); }
   #todayRow:hover span { color: #ffd27a; }
+  /* Real-sky panel */
+  #realFields { display: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin-top: 6px; padding-top: 6px; }
+  #hud.real #realFields { display: block; }
+  #hud.real .demoOnly { opacity: 0.35; pointer-events: none; }
+  .row { display: flex; align-items: center; gap: 4px; font-size: 12px; margin: 5px 0; color: #b9c6e0; }
+  .row > span:first-child { min-width: 54px; }
+  .row input[type="number"], .row select {
+    width: 50px; font-size: 12px; padding: 2px 4px;
+    background: rgba(20, 26, 40, 0.9); color: #e8eefc;
+    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 4px;
+  }
+  .row input.wide { width: 68px; }
+  .row select.wide { width: auto; flex: 1; min-width: 0; }
+  .row button {
+    font-size: 11px; padding: 3px 7px; flex: 1;
+    background: rgba(255, 210, 122, 0.12); color: #ffd27a;
+    border: 1px solid rgba(255, 210, 122, 0.4); border-radius: 4px; cursor: pointer;
+  }
+  .row button:hover { background: rgba(255, 210, 122, 0.25); }
+  #hudBody { max-height: calc(100vh - 80px); overflow-y: auto; }
   @media (max-width: 640px) {
     #hud { top: 8px; left: 8px; right: auto; max-width: calc(100vw - 16px); }
     #hudToggle { width: 36px; height: 36px; }
@@ -76,23 +96,60 @@
     </button>
   </div>
   <div id="hudBody">
-    <label><span id="lblDayLen">Day length (s)</span>
+    <label><input type="checkbox" id="realMode" /> <span id="lblRealMode">Real sky (date &amp; place)</span></label>
+    <div id="realFields">
+      <div class="row"><span id="lblDate">Date</span>
+        <input type="number" id="rYear" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
+        <input type="number" id="rMonth" min="1" max="12" step="1" />
+        <input type="number" id="rDay" min="1" max="31" step="1" />
+      </div>
+      <div class="row"><span id="lblTime">Time</span>
+        <input type="number" id="rHour" min="0" max="23" step="1" />
+        <input type="number" id="rMinute" min="0" max="59" step="1" />
+        <select id="rBasis" class="wide"><option value="lmt">Local mean time</option><option value="utc">UTC</option></select>
+      </div>
+      <div class="row"><span id="lblCal">Calendar</span>
+        <select id="rCal" class="wide"><option value="auto">Auto (Julian before 1582)</option><option value="julian">Julian</option><option value="gregorian">Gregorian</option></select>
+      </div>
+      <div class="row">
+        <button id="rNow">Now</button><button id="rM1d">&minus;1d</button><button id="rM1h">&minus;1h</button><button id="rP1h">+1h</button><button id="rP1d">+1d</button>
+      </div>
+      <div class="row"><span id="lblPlace">Place</span>
+        <select id="rCity" class="wide"></select>
+      </div>
+      <div class="row"><span id="lblLatLon">Lat / Lon</span>
+        <input type="number" id="rLat" class="wide" min="-90" max="90" step="0.01" />
+        <input type="number" id="rLon" class="wide" min="-180" max="180" step="0.01" />
+      </div>
+      <label><span id="lblRate">Time rate</span>
+        <input type="range" id="rRate" min="0" max="140" value="0" step="1" />
+      </label>
+      <div class="stat"><span id="lblRateVal">Rate:</span> <span id="rateVal">1&times;</span></div>
+      <label><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
+      <label><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
+      <div class="stat"><span id="lblLst">Local sidereal time:</span> <span id="lstVal">-</span></div>
+      <div class="stat"><span id="lblSunAlt">Sun alt / az:</span> <span id="sunAltVal">-</span></div>
+      <div class="stat"><span id="lblMoonPhase">Moon:</span> <span id="moonPhaseVal">-</span></div>
+      <div class="stat"><span id="lblPole">Pole star:</span> <span id="poleVal">-</span></div>
+      <div class="stat" id="pickHint">Free view: click the globe to pick a place</div>
+    </div>
+    <label class="demoOnly"><span id="lblDayLen">Day length (s)</span>
       <input type="range" id="dayLen" min="0.5" max="60" value="3.4" step="0.1" />
     </label>
-    <label><span id="lblSpeed">Orbit speed (real = 100)</span>
+    <label class="demoOnly"><span id="lblSpeed">Orbit speed (real = 100)</span>
       <input type="range" id="speed" min="0" max="300" value="100" step="1" />
     </label>
-    <label><span id="lblRotSpeed">Rotation speed (real = 100)</span>
+    <label class="demoOnly"><span id="lblRotSpeed">Rotation speed (real = 100)</span>
       <input type="range" id="rotSpeed" min="0" max="300" value="100" step="1" />
     </label>
-    <label><span id="lblMoonSpeed">Moon speed (real = 100)</span>
+    <label class="demoOnly"><span id="lblMoonSpeed">Moon speed (real = 100)</span>
       <input type="range" id="moonSpeed" min="0" max="300" value="100" step="1" />
     </label>
-    <button id="resetRatio"><span id="lblResetRatio">Reset real ratios</span></button>
-    <label><span id="lblLat">Observer latitude (observer view)</span>
+    <button id="resetRatio" class="demoOnly"><span id="lblResetRatio">Reset real ratios</span></button>
+    <label class="demoOnly"><span id="lblLat">Observer latitude (observer view)</span>
       <input type="range" id="lat" min="0" max="90" value="45" step="1" />
     </label>
-    <label><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
+    <label class="demoOnly"><input type="checkbox" id="annual" /> <span id="lblAnnual">Annual view (fixed local time)</span></label>
     <label><input type="checkbox" id="pause" /> <span id="lblPause">Pause</span></label>
     <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
     <label><input type="checkbox" id="moon" checked /> <span id="lblMoon">Moon</span></label>
@@ -119,6 +176,11 @@
     <div class="stat"><span id="lblFps">Render rate:</span> <span id="fps">-</span> fps</div>
   </div>
 </div>
+
+<!-- Classic scripts (not modules) so the page still works from file:// -->
+<script src="astro.js"></script>
+<script src="stars.js"></script>
+<script src="constellations.js"></script>
 
 <script type="importmap">
 {
@@ -160,7 +222,10 @@ function demoDayFromToday() {
 }
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 2000000);
+// Near plane is tiny so the ground disc of the real-sky observer view (0.1
+// units under the eye) is never clipped; the logarithmic depth buffer keeps
+// precision fine across the 1e8 near/far ratio.
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.01, 2000000);
 // Default view: the Earth up close with the Sun's disc just beside its limb
 // (close distance + small lateral offset), starting at day 1 (Dec 21).
 camera.position.set(ORBIT_RADIUS + 11.5, 0, 1.6);
@@ -700,6 +765,12 @@ $('speed').value = 100;
 $('rotSpeed').value = 100;
 $('moonSpeed').value = 100;
 $('lat').value = 45;
+$('realMode').checked = false;
+$('conLines').checked = true;
+$('conNames').checked = true;
+$('rRate').value = 0;
+$('rBasis').value = 'lmt';
+$('rCal').value = 'auto';
 
 // ---- Internationalization ----
 // Follows the user's device language; falls back to English.
@@ -741,6 +812,30 @@ const I18N = {
     lblMoonRate: 'Moon:',
     moonRate: '{sp}\u00B0/s \u00B7 {n}\u00D7 per orbit',
     lblFps: 'Render rate:',
+    realMode: 'Real sky (date & place)',
+    lblDate: 'Date',
+    lblTime: 'Time',
+    lblCal: 'Calendar',
+    now: 'Now',
+    lblPlace: 'Place',
+    lblLatLon: 'Lat / Lon',
+    lblRate: 'Time rate',
+    lblRateVal: 'Rate:',
+    conLines: 'Xingguan lines (Chinese constellations)',
+    conNames: 'Xingguan names',
+    lblLst: 'Local sidereal time:',
+    lblSunAlt: 'Sun alt / az:',
+    lblMoonPhase: 'Moon:',
+    lblPole: 'Pole star:',
+    pickHint: 'Free view: click the globe to pick a place',
+    custom: '\u2014 custom \u2014',
+    basisLmt: 'Local mean solar time',
+    basisUtc: 'UTC',
+    calAuto: 'Auto (Julian before 1582-10-15)',
+    calJulian: 'Julian',
+    calGregorian: 'Gregorian',
+    moonPhase: '{p}% lit \u00B7 {e}\u00B0 from Sun',
+    poleStar: '{name}, {d}\u00B0 from the pole',
   },
   zh: {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
@@ -779,6 +874,30 @@ const I18N = {
     lblMoonRate: '\u6708\u7403\uFF1A',
     moonRate: '{sp}\u00B0/\u79D2 \u00B7 \u6BCF\u8F68\u9053 {n}\u00D7',
     lblFps: '\u6E32\u67D3\u5E27\u7387\uFF1A',
+    realMode: '\u771F\u5B9E\u661F\u7A7A\uFF08\u65E5\u671F + \u5730\u70B9\uFF09',
+    lblDate: '\u65E5\u671F',
+    lblTime: '\u65F6\u95F4',
+    lblCal: '\u5386\u6CD5',
+    now: '\u73B0\u5728',
+    lblPlace: '\u5730\u70B9',
+    lblLatLon: '\u7EAC\u5EA6 / \u7ECF\u5EA6',
+    lblRate: '\u65F6\u95F4\u500D\u7387',
+    lblRateVal: '\u500D\u7387\uFF1A',
+    conLines: '\u661F\u5B98\u8FDE\u7EBF\uFF08\u4E09\u57A3\u4E8C\u5341\u516B\u5BBF\uFF09',
+    conNames: '\u661F\u5B98\u540D',
+    lblLst: '\u5F53\u5730\u6052\u661F\u65F6\uFF1A',
+    lblSunAlt: '\u592A\u9633\u9AD8\u5EA6 / \u65B9\u4F4D\uFF1A',
+    lblMoonPhase: '\u6708\u4EAE\uFF1A',
+    lblPole: '\u6781\u661F\uFF1A',
+    pickHint: '\u81EA\u7531\u89C6\u89D2\u4E0B\u70B9\u51FB\u5730\u7403\u53EF\u9009\u5730\u70B9',
+    custom: '\u2014 \u81EA\u5B9A\u4E49 \u2014',
+    basisLmt: '\u5F53\u5730\u5E73\u592A\u9633\u65F6',
+    basisUtc: 'UTC',
+    calAuto: '\u81EA\u52A8\uFF081582-10-15 \u524D\u7528\u5112\u7565\u5386\uFF09',
+    calJulian: '\u5112\u7565\u5386',
+    calGregorian: '\u516C\u5386',
+    moonPhase: '\u7167\u4EAE {p}% \u00B7 \u8DDD\u65E5 {e}\u00B0',
+    poleStar: '{name}\uFF0C\u8DDD\u6781 {d}\u00B0',
   },
 };
 
@@ -829,6 +948,29 @@ function applyLang() {
   set('lblRotation', d.lblRotation);
   set('lblMoonRate', d.lblMoonRate);
   set('lblFps', d.lblFps);
+  set('lblRealMode', d.realMode);
+  set('lblDate', d.lblDate);
+  set('lblTime', d.lblTime);
+  set('lblCal', d.lblCal);
+  set('rNow', d.now);
+  set('lblPlace', d.lblPlace);
+  set('lblLatLon', d.lblLatLon);
+  set('lblRate', d.lblRate);
+  set('lblRateVal', d.lblRateVal);
+  set('lblConLines', d.conLines);
+  set('lblConNames', d.conNames);
+  set('lblLst', d.lblLst);
+  set('lblSunAlt', d.lblSunAlt);
+  set('lblMoonPhase', d.lblMoonPhase);
+  set('lblPole', d.lblPole);
+  set('pickHint', d.pickHint);
+  const basisOpts = document.getElementById('rBasis').options;
+  basisOpts[0].textContent = d.basisLmt;
+  basisOpts[1].textContent = d.basisUtc;
+  const calOpts = document.getElementById('rCal').options;
+  calOpts[0].textContent = d.calAuto;
+  calOpts[1].textContent = d.calJulian;
+  calOpts[2].textContent = d.calGregorian;
 }
 applyLang();
 
@@ -852,29 +994,31 @@ $('clouds').addEventListener('change', (e) => { clouds.visible = cloudsOn = e.ta
 $('moon').addEventListener('change', (e) => { moonGroup.visible = e.target.checked; requestRender(); });
 $('orbitPath').addEventListener('change', (e) => { orbitLine.visible = e.target.checked; requestRender(); });
 $('axis').addEventListener('change', (e) => { axisGroup.visible = e.target.checked; requestRender(); });
+// The hand-placed demo sky (Polaris, Dipper, random stars, hint lines) is
+// replaced by the star catalog in real-sky mode, so these stay hidden there.
 $('polaris').addEventListener('change', (e) => {
-  polarisGroup.visible = e.target.checked;
+  polarisGroup.visible = e.target.checked && !real.on;
   requestRender();
 });
 $('polarisLine').addEventListener('change', (e) => {
-  hintLine.visible = e.target.checked;
+  hintLine.visible = e.target.checked && !real.on;
   requestRender();
 });
-$('dipper').addEventListener('change', (e) => { bdGroup.visible = e.target.checked; requestRender(); });
+$('dipper').addEventListener('change', (e) => { bdGroup.visible = e.target.checked && !real.on; requestRender(); });
 $('dipperLine').addEventListener('change', (e) => {
-  pointerHint.visible = e.target.checked;
+  pointerHint.visible = e.target.checked && !real.on;
   requestRender();
 });
 $('rays').addEventListener('change', (e) => { hitRays.visible = missRays.visible = e.target.checked; requestRender(); });
 $('equator').addEventListener('change', (e) => { equator.visible = e.target.checked; requestRender(); });
-$('starfield').addEventListener('change', (e) => { starfieldGroup.visible = e.target.checked; requestRender(); });
+$('starfield').addEventListener('change', (e) => { starfieldGroup.visible = e.target.checked && !real.on; requestRender(); });
 $('dayLen').addEventListener('input', requestRender);
 $('speed').addEventListener('input', requestRender);
 $('rotSpeed').addEventListener('input', requestRender);
 $('moonSpeed').addEventListener('input', requestRender);
 $('lat').addEventListener('input', requestRender);
 $('annual').addEventListener('change', (e) => {
-  if (e.target.checked && !observerMode) setObserverMode(true);
+  if (e.target.checked && !observerMode && !real.on) setObserverMode(true);
   requestRender();
 });
 // ---- Observer view ----
@@ -912,6 +1056,7 @@ const _obsViewAxis = new THREE.Vector3();
 // the Sun stays fixed, and only the annual drift remains -- the Dipper
 // completes exactly one circle around Polaris per orbit (per year).
 function updateObserverView() {
+  if (real.on) { updateObserverViewReal(); return; }
   const latRad = Number($('lat').value) * Math.PI / 180;
   observer.position.set(
     Math.cos(latRad) * OBSERVER_RADIUS,
@@ -954,7 +1099,12 @@ function setObserverMode(on) {
     camera.fov = obsFov;
     camera.updateProjectionMatrix();
     controls.enabled = false;
+    real.az = 0;              // real-sky mode: start looking north, mid-sky
+    real.alt = 30;
   } else {
+    horizonGroup.visible = false;
+    earthPivot.visible = true;
+    renderer.setClearColor(0x000000);
     camera.position.copy(earthPivot.position).add(savedCamOffset);
     controls.target.copy(earthPivot.position).add(savedTargetOffset);
     camera.up.copy(savedUp);
@@ -1012,8 +1162,15 @@ function frameDefault() {
 // is left untouched -- the follow camera simply rides the Earth to its new
 // position, preserving the relative view.
 function goToToday() {
+  if (real.on) {
+    real.jd = Astro.calendarToJD(utcNowFields());
+    jdToFields(real.jd);
+    applyRealState();
+    requestRender();
+    return;
+  }
   angle = ((demoDayFromToday() - 1) / DAYS_YEAR) * 2 * Math.PI;
-  earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, Math.sin(angle) * ORBIT_RADIUS);
+  earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, -Math.sin(angle) * ORBIT_RADIUS);
   moonAngle = angle * MOON_ORBITS_PER_YEAR * moonFactor();
   // snap the spin so the hour of day matches the real current time
   const now = new Date();
@@ -1145,16 +1302,627 @@ const _daySunDir = new THREE.Vector3();
 // declination + hour of day from the Earth's spin (0.0 = midnight).
 // Day 1 = Jan 1; the orbit angle 0 sits at the Dec 21 solstice.
 function refreshDayOfYear() {
-  const day = Math.floor(((angle / (2 * Math.PI)) * DAYS_YEAR + SOLSTICE_DAY - 1) % DAYS_YEAR) + 1;
-  dayLabel.textContent = String(day);
   _daySunDir.copy(earthPivot.position).negate().normalize();
   const decDeg = 90 - Math.acos(
-    Math.min(1, Math.max(-1, _daySunDir.dot(POLARIS_DIR)))
+    Math.min(1, Math.max(-1, _daySunDir.dot(real.on ? poleDirScene : POLARIS_DIR)))
   ) * 180 / Math.PI;
   seasonLabel.textContent =
     decDeg > 8 ? t('lblSeason').summer : decDeg < -8 ? t('lblSeason').winter : t('lblSeason').equinox;
+  if (real.on) {
+    // Real calendar: day of year and local hour straight from the clock.
+    const local = real.jd + localOffsetDays();
+    const c = Astro.jdToCalendar(local, real.cal);
+    const jan1 = Astro.calendarToJD({ year: c.year, month: 1, day: 1 }, c.calendar);
+    dayLabel.textContent = String(Math.floor(local - jan1) + 1);
+    hourLabel.textContent = (c.hour + c.minute / 60 + c.second / 3600).toFixed(1);
+    return;
+  }
+  const day = Math.floor(((angle / (2 * Math.PI)) * DAYS_YEAR + SOLSTICE_DAY - 1) % DAYS_YEAR) + 1;
+  dayLabel.textContent = String(day);
   hourLabel.textContent = (((earth.rotation.y / (2 * Math.PI)) % 1 + 1) % 1 * 24).toFixed(1);
 }
+
+// =====================================================================
+// ---- Real-sky mode ----
+// A real calendar clock (UT Julian Day) drives the scene: the Earth's
+// orbital position from the Sun's true longitude, its orientation from the
+// pole/equinox of date (precession) and Greenwich sidereal time, the Moon
+// from its ephemeris, and a real star catalog on a camera-centred sphere.
+// Frame conventions are spelled out in PLAN.md ("坐标约定").
+// =====================================================================
+const Astro = window.Astro;
+const STARS = window.STAR_DATA;
+const CONS = window.CONSTELLATION_DATA;
+const R_SKY = 200000;              // camera-centred celestial sphere (world units)
+const R_HORIZON = 180000;          // horizon ring / ground disc radius
+const KM_PER_UNIT = 6371;          // 1 world unit = 1 Earth radius
+
+// J2000 equatorial unit vector -> scene frame
+// (scene.X = ecliptic lon 90°, scene.Y = north ecliptic pole, scene.Z = equinox).
+const _eqToEclM = Astro.rotX(-Astro.EPS_J2000);
+function toScene(v, out = new THREE.Vector3()) {
+  const e = Astro.matVec(_eqToEclM, v);
+  return out.set(e[1], e[2], e[0]);
+}
+
+function utcNowFields() {
+  const d = new Date();
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(),
+           hour: d.getUTCHours(), minute: d.getUTCMinutes(), second: d.getUTCSeconds() };
+}
+
+const real = {
+  on: false,
+  jd: Astro.calendarToJD(utcNowFields()),   // UT Julian Day: the single time source
+  rate: 1,                                  // simulated seconds per real second
+  lat: 34.34, lon: 108.94,                  // Xi'an
+  basis: 'lmt',                             // 'lmt' local mean solar time | 'utc'
+  cal: 'auto',
+  az: 0, alt: 30,                           // observer look direction (deg)
+};
+
+// Historical capitals first, then a few world cities. [id, zh, en, lat, lon]
+const CITIES = [
+  ['xian', '西安', "Xi'an", 34.34, 108.94],
+  ['luoyang', '洛阳', 'Luoyang', 34.62, 112.45],
+  ['beijing', '北京', 'Beijing', 39.90, 116.41],
+  ['nanjing', '南京', 'Nanjing', 32.06, 118.80],
+  ['kaifeng', '开封', 'Kaifeng', 34.80, 114.31],
+  ['hangzhou', '杭州', 'Hangzhou', 30.27, 120.16],
+  ['anyang', '安阳（殷墟）', 'Anyang (Yinxu)', 36.10, 114.39],
+  ['dengfeng', '登封（周公测景台）', 'Dengfeng (Zhougong gnomon)', 34.46, 113.03],
+  ['qufu', '曲阜', 'Qufu', 35.60, 116.99],
+  ['chengdu', '成都', 'Chengdu', 30.57, 104.07],
+  ['guangzhou', '广州', 'Guangzhou', 23.13, 113.26],
+  ['shanghai', '上海', 'Shanghai', 31.23, 121.47],
+  ['hongkong', '香港', 'Hong Kong', 22.32, 114.17],
+  ['taipei', '台北', 'Taipei', 25.03, 121.57],
+  ['urumqi', '乌鲁木齐', 'Ürümqi', 43.83, 87.62],
+  ['lhasa', '拉萨', 'Lhasa', 29.65, 91.17],
+  ['harbin', '哈尔滨', 'Harbin', 45.80, 126.54],
+  ['tokyo', '东京', 'Tokyo', 35.68, 139.65],
+  ['babylon', '巴比伦', 'Babylon', 32.54, 44.42],
+  ['athens', '雅典', 'Athens', 37.98, 23.73],
+  ['cairo', '开罗', 'Cairo', 30.04, 31.24],
+  ['london', '伦敦', 'London', 51.51, -0.13],
+  ['newyork', '纽约', 'New York', 40.71, -74.01],
+  ['sydney', '悉尼', 'Sydney', -33.87, 151.21],
+];
+
+// ---- Date fields <-> JD ----
+function localOffsetDays() { return real.basis === 'lmt' ? real.lon / 15 / 24 : 0; }
+
+function fieldsToJD() {
+  const ids = ['rYear', 'rMonth', 'rDay', 'rHour', 'rMinute'];
+  if (ids.some((id) => $(id).value === '')) return null;
+  const [year, month, day, hour, minute] = ids.map((id) => Number($(id).value));
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return null;
+  return Astro.calendarToJD({ year, month, day, hour, minute }, real.cal) - localOffsetDays();
+}
+function jdToFields(jd) {
+  const c = Astro.jdToCalendar(jd + localOffsetDays(), real.cal);
+  $('rYear').value = c.year;
+  $('rMonth').value = c.month;
+  $('rDay').value = c.day;
+  $('rHour').value = c.hour;
+  $('rMinute').value = c.minute;
+}
+function fieldFocused() {
+  const a = document.activeElement;
+  return !!(a && a.tagName === 'INPUT' && a.closest('#realFields'));
+}
+function fmtHM(hours) {
+  const h = Math.floor(hours), m = Math.floor((hours - h) * 60);
+  return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+}
+
+// ---- Star catalog on a camera-centred sphere ----
+const skyGroup = new THREE.Group();
+skyGroup.visible = false;
+scene.add(skyGroup);
+
+const N_STARS = STARS.stars.length;
+const starPos = new Float32Array(N_STARS * 3);
+const starCol = new Float32Array(N_STARS * 3);
+const starSize = new Float32Array(N_STARS);
+const hipIndex = new Map();
+const _tmpV = new THREE.Vector3();
+
+// B-V colour index -> RGB tint (blue-white to orange-red)
+const BV_TABLE = [
+  [-0.4, 0.62, 0.72, 1.00], [0.0, 0.80, 0.87, 1.00], [0.3, 0.93, 0.96, 1.00],
+  [0.6, 1.00, 0.97, 0.88], [1.0, 1.00, 0.88, 0.72], [1.5, 1.00, 0.78, 0.58], [2.0, 1.00, 0.70, 0.48],
+];
+function bvColor(bv) {
+  const tb = BV_TABLE;
+  if (bv <= tb[0][0]) return tb[0].slice(1);
+  for (let i = 1; i < tb.length; i++) {
+    if (bv <= tb[i][0]) {
+      const f = (bv - tb[i - 1][0]) / (tb[i][0] - tb[i - 1][0]);
+      return [1, 2, 3].map((k) => tb[i - 1][k] + f * (tb[i][k] - tb[i - 1][k]));
+    }
+  }
+  return tb[tb.length - 1].slice(1);
+}
+for (let i = 0; i < N_STARS; i++) {
+  const [hip, , , mag, ci] = STARS.stars[i];
+  if (hip) hipIndex.set(hip, i);
+  const bright = Math.min(1, Math.max(0.12, Math.pow(10, -0.2 * (mag - 1))));
+  const c = bvColor(ci);
+  starCol[i * 3] = c[0] * bright;
+  starCol[i * 3 + 1] = c[1] * bright;
+  starCol[i * 3 + 2] = c[2] * bright;
+  starSize[i] = Math.min(14, Math.max(1.8, 9 * Math.pow(10, -0.16 * mag)));
+}
+
+const starGeo = new THREE.BufferGeometry();
+starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+starGeo.setAttribute('size', new THREE.BufferAttribute(starSize, 1));
+// Per-star point size + colour, soft round points, additive. The log-depth
+// chunks keep depth consistent with the rest of the scene (ground occlusion).
+const starMat = new THREE.ShaderMaterial({
+  uniforms: { uScale: { value: Math.min(devicePixelRatio, 2) }, uOpacity: { value: 1 } },
+  vertexShader: `
+    attribute float size;
+    uniform float uScale;
+    varying vec3 vColor;
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    void main() {
+      vColor = color;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * uScale;
+      gl_Position = projectionMatrix * mvPosition;
+      #include <logdepthbuf_vertex>
+    }`,
+  fragmentShader: `
+    uniform float uOpacity;
+    varying vec3 vColor;
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    void main() {
+      #include <logdepthbuf_fragment>
+      float d = length(gl_PointCoord - 0.5) * 2.0;
+      if (d > 1.0) discard;
+      float a = 1.0 - d;
+      a = a * a * (3.0 - 2.0 * a);
+      gl_FragColor = vec4(vColor, a * uOpacity);
+    }`,
+  vertexColors: true,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const starPoints = new THREE.Points(starGeo, starMat);
+starPoints.frustumCulled = false;
+skyGroup.add(starPoints);
+
+// Xingguan lines: pairs of star indices, positions copied from the star buffer
+const lineIdx = [];
+for (const c of CONS) {
+  for (const seg of c.lines) {
+    for (let k = 0; k + 1 < seg.length; k++) {
+      const a = hipIndex.get(seg[k]), b = hipIndex.get(seg[k + 1]);
+      if (a !== undefined && b !== undefined) lineIdx.push(a, b);
+    }
+  }
+}
+const linePos = new Float32Array(lineIdx.length * 3);
+const lineGeo = new THREE.BufferGeometry();
+lineGeo.setAttribute('position', new THREE.BufferAttribute(linePos, 3));
+const lineMat = new THREE.LineBasicMaterial({ color: 0x86a6d6, transparent: true, opacity: 0.45, depthWrite: false });
+const conLines = new THREE.LineSegments(lineGeo, lineMat);
+conLines.frustumCulled = false;
+skyGroup.add(conLines);
+
+function makeSmallLabel(text, color = '#cfe0ff') {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(120, 160, 255, 0.9)';
+  ctx.shadowBlur = 8;
+  ctx.font = 'bold 36px -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+  ctx.fillStyle = color;
+  ctx.fillText(text, 128, 32);
+  return new THREE.CanvasTexture(c);
+}
+
+// Xingguan name labels at the centroid of each figure (J2000; proper motion
+// moves a centroid by far less than the label height)
+const conLabels = new THREE.Group();
+skyGroup.add(conLabels);
+const _cen = new THREE.Vector3();
+for (const c of CONS) {
+  if (!c.zh) continue;
+  const ids = new Set();
+  for (const seg of c.lines) for (const h of seg) { const i = hipIndex.get(h); if (i !== undefined) ids.add(i); }
+  if (!ids.size) continue;
+  _cen.set(0, 0, 0);
+  for (const i of ids) { const s = STARS.stars[i]; _cen.add(toScene(Astro.sphToVec(s[1], s[2]), _tmpV)); }
+  _cen.normalize();
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(c.zh), transparent: true, depthWrite: false, opacity: 0.9 }));
+  sp.position.copy(_cen).multiplyScalar(R_SKY * 0.98);
+  conLabels.add(sp);
+}
+
+// Star positions for an epoch: J2000 + proper motion. Rebuilt when the
+// simulated date drifts more than 5 years from the last build.
+let starEpochJd = null;
+function buildStarPositions(jdTT) {
+  const years = (jdTT - Astro.J2000) / 365.25;
+  for (let i = 0; i < N_STARS; i++) {
+    const s = STARS.stars[i];
+    const pm = Astro.applyProperMotion(s[1], s[2], s[5], s[6], years);
+    toScene(Astro.sphToVec(pm.ra, pm.dec), _tmpV).multiplyScalar(R_SKY);
+    starPos[i * 3] = _tmpV.x;
+    starPos[i * 3 + 1] = _tmpV.y;
+    starPos[i * 3 + 2] = _tmpV.z;
+  }
+  starGeo.attributes.position.needsUpdate = true;
+  for (let k = 0; k < lineIdx.length; k++) {
+    const i = lineIdx[k] * 3;
+    linePos[k * 3] = starPos[i];
+    linePos[k * 3 + 1] = starPos[i + 1];
+    linePos[k * 3 + 2] = starPos[i + 2];
+  }
+  lineGeo.attributes.position.needsUpdate = true;
+  starEpochJd = jdTT;
+}
+
+// ---- Horizon: ground disc, horizon ring, cardinal points ----
+// Local frame: X = east, Y = north, Z = up. The disc sits 0.1 unit under the
+// eye so anything below the horizon (stars, Moon, Sun) is occluded by depth.
+const horizonGroup = new THREE.Group();
+horizonGroup.visible = false;
+scene.add(horizonGroup);
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(R_HORIZON, 96),
+  new THREE.MeshBasicMaterial({ color: 0x0a0d13 })
+);
+ground.position.z = -0.1;
+horizonGroup.add(ground);
+const horizonRing = new THREE.LineLoop(
+  new THREE.BufferGeometry().setFromPoints(
+    Array.from({ length: 128 }, (_, i) => {
+      const a = (i / 128) * Math.PI * 2;
+      return new THREE.Vector3(Math.cos(a) * R_HORIZON * 0.999, Math.sin(a) * R_HORIZON * 0.999, 0);
+    })
+  ),
+  new THREE.LineBasicMaterial({ color: 0x59d9a8, transparent: true, opacity: 0.7 })
+);
+horizonGroup.add(horizonRing);
+const cardinalLabels = [];
+for (const [text, x, y] of [['N', 0, 1], ['E', 1, 0], ['S', 0, -1], ['W', -1, 0]]) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(text, '#8ef0c4'), transparent: true, depthWrite: false }));
+  sp.position.set(x * R_HORIZON * 0.97, y * R_HORIZON * 0.97, R_HORIZON * 0.02);
+  horizonGroup.add(sp);
+  cardinalLabels.push(sp);
+}
+
+// Labels keep a constant on-screen size: world height scales with the FOV.
+let labelFov = -1;
+function updateLabelScale() {
+  if (camera.fov === labelFov) return;
+  labelFov = camera.fov;
+  const h = R_SKY * Math.tan(THREE.MathUtils.degToRad(1.3 * camera.fov / 60));
+  for (const sp of conLabels.children) sp.scale.set(h * 4, h, 1);
+  const hc = h * 1.6;
+  for (const sp of cardinalLabels) sp.scale.set(hc * 4, hc, 1);
+}
+
+// Sky sphere rides the camera: zero parallax, stars at infinity.
+function syncSky() {
+  if (!skyGroup.visible) return;
+  skyGroup.position.copy(camera.position);
+  updateLabelScale();
+}
+
+// Observer marker on the globe (seen in the free view of real-sky mode)
+const observerMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(0.012, 12, 12),
+  new THREE.MeshBasicMaterial({ color: 0xff5a5a })
+);
+observerMarker.visible = false;
+observer.add(observerMarker);
+
+// ---- Apply the clock to the scene ----
+const poleDirScene = new THREE.Vector3().copy(POLARIS_DIR);   // pole of date, scene frame
+const equinoxDirScene = new THREE.Vector3(0, 0, 1);
+const _sunDir = new THREE.Vector3();
+const _moonDir = new THREE.Vector3();
+const _zAxis = new THREE.Vector3();
+const _pivotM = new THREE.Matrix4();
+const _skyCol = new THREE.Color();
+let sunAltDeg = -90;
+let lastReadout = 0;
+
+function setObserverPosition() {
+  const la = THREE.MathUtils.degToRad(real.lat), lo = THREE.MathUtils.degToRad(real.lon);
+  observer.position.set(
+    Math.cos(la) * Math.cos(lo),
+    Math.sin(la),
+    -Math.cos(la) * Math.sin(lo)
+  ).multiplyScalar(OBSERVER_RADIUS);
+}
+
+function applyRealState() {
+  const tt = Astro.jdTTfromUT(real.jd);
+
+  // Earth: opposite the Sun's geocentric direction, at the true distance
+  const sv = Astro.sunVectorJ2000(tt);
+  toScene(sv.v, _sunDir);
+  earthPivot.position.copy(_sunDir).multiplyScalar(-ORBIT_RADIUS * sv.R);
+  angle = THREE.MathUtils.degToRad(Astro.norm360(sv.lon + 90));   // demo-readout equivalent
+
+  // Orientation: local X = equinox of date, local Y = pole of date (precession),
+  // then spin Greenwich to the sidereal time.
+  toScene(Astro.equinoxOfDate(tt), equinoxDirScene);
+  toScene(Astro.poleOfDate(tt), poleDirScene);
+  _zAxis.crossVectors(equinoxDirScene, poleDirScene);
+  earthPivot.quaternion.setFromRotationMatrix(_pivotM.makeBasis(equinoxDirScene, poleDirScene, _zAxis));
+  earth.rotation.y = THREE.MathUtils.degToRad(Astro.gmst(real.jd));
+  clouds.rotation.y = earth.rotation.y + (real.jd - Astro.J2000) * 0.03;
+  setObserverPosition();
+
+  // Moon: real direction and distance; the phase comes from the lighting
+  const mn = Astro.moonVectorJ2000(tt);
+  toScene(mn.v, _moonDir);
+  moonGroup.position.copy(earthPivot.position);
+  moonGroup.rotation.set(0, 0, 0);
+  moonGroup.updateWorldMatrix(true, false);
+  moon.position.copy(_moonDir).multiplyScalar(mn.dist / KM_PER_UNIT);
+  moon.lookAt(earthPivot.position);
+  moon.rotateY(-Math.PI / 2);   // near-side texture centre (+X) faces the Earth
+
+  if (starEpochJd === null || Math.abs(tt - starEpochJd) > 365.25 * 5) buildStarPositions(tt);
+
+  // Daylight: the Sun's altitude for the observer dims the stars, tints the sky
+  observer.getWorldPosition(_tmpV).sub(earthPivot.position).normalize();
+  sunAltDeg = Math.asin(THREE.MathUtils.clamp(_tmpV.dot(_sunDir), -1, 1)) * 180 / Math.PI;
+  const night = observerMode ? THREE.MathUtils.clamp(1 - (sunAltDeg + 18) / 24, 0.06, 1) : 1;
+  starMat.uniforms.uOpacity.value = night;
+  lineMat.opacity = 0.45 * night;
+  if (observerMode) {
+    const k = THREE.MathUtils.smoothstep(sunAltDeg, -8, 6);
+    renderer.setClearColor(_skyCol.setRGB(0.42 * k, 0.62 * k, 0.9 * k));
+  }
+
+  // Free-view follow camera: ride along with any jump of the Earth
+  if (!observerMode) {
+    _followDelta.copy(earthPivot.position).sub(prevEarthPos);
+    camera.position.add(_followDelta);
+    controls.target.add(_followDelta);
+  }
+  prevEarthPos.copy(earthPivot.position);
+
+  const now = performance.now();
+  if (now - lastReadout > 250) {
+    lastReadout = now;
+    updateRealReadouts(tt, sv);
+  }
+}
+
+function updateRealReadouts(tt, sv) {
+  $('lstVal').textContent = fmtHM(Astro.lst(real.jd, real.lon) / 15);
+  const sh = Astro.j2000ToHorizontal(sv.v, real.jd, real.lat, real.lon);
+  $('sunAltVal').textContent = `${sh.alt.toFixed(1)}° / ${sh.az.toFixed(0)}°`;
+  const ill = Astro.moonIllumination(tt);
+  $('moonPhaseVal').textContent = t('moonPhase')
+    .replace('{p}', (ill.fraction * 100).toFixed(0))
+    .replace('{e}', ill.elongation.toFixed(0));
+  // The epoch's pole star: nearest catalog star (V <= 4.5) to the pole of date
+  const pole = Astro.poleOfDate(tt);
+  let best = -1, bestD = 1e9;
+  for (let i = 0; i < N_STARS; i++) {
+    const s = STARS.stars[i];
+    if (s[3] > 4.5 || !s[0]) continue;
+    const d = Astro.angularDistance(pole, Astro.sphToVec(s[1], s[2]));
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (best >= 0) {
+    const hip = STARS.stars[best][0];
+    const name = (lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip])) || ('HIP ' + hip);
+    $('poleVal').textContent = t('poleStar').replace('{name}', name).replace('{d}', bestD.toFixed(1));
+  }
+  if (!fieldFocused() && !paused) jdToFields(real.jd);
+}
+
+// ---- Observer view in real-sky mode: stand at (lat, lon), look around ----
+const _north = new THREE.Vector3();
+const _east = new THREE.Vector3();
+const _view = new THREE.Vector3();
+const _basisM = new THREE.Matrix4();
+function updateObserverViewReal() {
+  setObserverPosition();
+  observer.getWorldPosition(_obsCamPos);
+  camera.position.copy(_obsCamPos);
+  _obsUp.copy(_obsCamPos).sub(earthPivot.position).normalize();
+  _north.copy(poleDirScene).addScaledVector(_obsUp, -poleDirScene.dot(_obsUp));
+  if (_north.lengthSq() < 1e-8) _north.set(1, 0, 0).addScaledVector(_obsUp, -_obsUp.x);   // at a pole
+  _north.normalize();
+  _east.crossVectors(_north, _obsUp);
+  const az = THREE.MathUtils.degToRad(real.az), alt = THREE.MathUtils.degToRad(real.alt);
+  _view.copy(_north).multiplyScalar(Math.cos(az)).addScaledVector(_east, Math.sin(az))
+    .multiplyScalar(Math.cos(alt)).addScaledVector(_obsUp, Math.sin(alt));
+  camera.up.copy(_obsUp);
+  camera.lookAt(_view.add(_obsCamPos));
+  if (camera.fov !== obsFov) {
+    camera.fov = obsFov;
+    camera.updateProjectionMatrix();
+  }
+  // Ground and horizon follow the observer; the globe itself is hidden so the
+  // ground is uniform (the eye is 130 km up in this scale).
+  horizonGroup.visible = true;
+  horizonGroup.position.copy(_obsCamPos);
+  horizonGroup.quaternion.setFromRotationMatrix(_basisM.makeBasis(_east, _north, _obsUp));
+  earthPivot.visible = false;
+}
+
+// Drag to look around (real-sky observer view); click the globe to pick a place.
+let lookDrag = null;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  lookDrag = { x: e.clientX, y: e.clientY, moved: false };
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (!lookDrag || pinchDist !== null) return;
+  const dx = e.clientX - lookDrag.x, dy = e.clientY - lookDrag.y;
+  if (Math.hypot(dx, dy) > 3) lookDrag.moved = true;
+  if (observerMode && real.on) {
+    const degPerPx = camera.fov / innerHeight;
+    real.az = Astro.norm360(real.az - dx * degPerPx);
+    real.alt = THREE.MathUtils.clamp(real.alt + dy * degPerPx, -25, 89.9);
+    lookDrag.x = e.clientX;
+    lookDrag.y = e.clientY;
+    requestRender();
+  }
+});
+addEventListener('pointerup', (e) => {
+  if (lookDrag && !lookDrag.moved && real.on && !observerMode && e.target === renderer.domElement) {
+    pickPlaceAt(e.clientX, e.clientY);
+  }
+  lookDrag = null;
+});
+
+const raycaster = new THREE.Raycaster();
+const _ndc = new THREE.Vector2();
+function pickPlaceAt(x, y) {
+  _ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(_ndc, camera);
+  const hit = raycaster.intersectObject(earth, false)[0];
+  if (!hit) return;
+  const p = earth.worldToLocal(hit.point.clone()).normalize();
+  real.lat = Math.asin(THREE.MathUtils.clamp(p.y, -1, 1)) * 180 / Math.PI;
+  real.lon = Math.atan2(-p.z, p.x) * 180 / Math.PI;
+  $('rLat').value = real.lat.toFixed(2);
+  $('rLon').value = real.lon.toFixed(2);
+  $('rCity').value = '';
+  jdToFields(real.jd);     // local mean time shifts with longitude
+  applyRealState();
+  requestRender();
+}
+
+// ---- Real-sky UI ----
+function setRealMode(on) {
+  if (on === real.on) return;
+  real.on = on;
+  hud.classList.toggle('real', on);
+  skyGroup.visible = on;
+  observerMarker.visible = on;
+  bdGroup.visible = !on && $('dipper').checked;
+  polarisGroup.visible = !on && $('polaris').checked;
+  starfieldGroup.visible = !on && $('starfield').checked;
+  hintLine.visible = !on && $('polarisLine').checked;
+  pointerHint.visible = !on && $('dipperLine').checked;
+  if (on) {
+    jdToFields(real.jd);
+    applyRealState();
+    if (!observerMode) setObserverMode(true);
+  } else {
+    horizonGroup.visible = false;
+    earthPivot.visible = true;
+    renderer.setClearColor(0x000000);
+    starMat.uniforms.uOpacity.value = 1;
+    poleDirScene.copy(POLARIS_DIR);
+    earthPivot.quaternion.setFromEuler(new THREE.Euler(0, 0, -EARTH_TILT));
+    earthPivot.position.set(Math.cos(angle) * ORBIT_RADIUS, 0, -Math.sin(angle) * ORBIT_RADIUS);
+    moonGroup.rotation.set(MOON_TILT, moonAngle, 0);
+    moon.position.set(MOON_ORBIT, 0, 0);
+    moon.rotation.set(0, Math.PI, 0);
+    prevEarthPos.copy(earthPivot.position);
+  }
+  requestRender();
+}
+$('realMode').addEventListener('change', (e) => setRealMode(e.target.checked));
+
+function applyFields() {
+  const jd = fieldsToJD();
+  if (jd === null) return;
+  real.jd = jd;
+  applyRealState();
+  requestRender();
+}
+for (const id of ['rYear', 'rMonth', 'rDay', 'rHour', 'rMinute']) $(id).addEventListener('change', applyFields);
+$('rBasis').addEventListener('change', (e) => { real.basis = e.target.value; jdToFields(real.jd); });
+$('rCal').addEventListener('change', (e) => { real.cal = e.target.value; jdToFields(real.jd); });
+$('rNow').addEventListener('click', () => {
+  real.jd = Astro.calendarToJD(utcNowFields());
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
+});
+const shiftDays = (d) => () => { real.jd += d; jdToFields(real.jd); applyRealState(); requestRender(); };
+$('rM1d').addEventListener('click', shiftDays(-1));
+$('rM1h').addEventListener('click', shiftDays(-1 / 24));
+$('rP1h').addEventListener('click', shiftDays(1 / 24));
+$('rP1d').addEventListener('click', shiftDays(1));
+
+function applyLatLon() {
+  const la = Number($('rLat').value), lo = Number($('rLon').value);
+  if ($('rLat').value === '' || $('rLon').value === '' || !Number.isFinite(la) || !Number.isFinite(lo)) return;
+  real.lat = THREE.MathUtils.clamp(la, -90, 90);
+  real.lon = ((lo + 180) % 360 + 360) % 360 - 180;
+  $('rCity').value = '';
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
+}
+$('rLat').addEventListener('change', applyLatLon);
+$('rLon').addEventListener('change', applyLatLon);
+$('rCity').addEventListener('change', (e) => {
+  const c = CITIES.find((x) => x[0] === e.target.value);
+  if (!c) return;
+  real.lat = c[3];
+  real.lon = c[4];
+  $('rLat').value = c[3];
+  $('rLon').value = c[4];
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
+});
+function buildCityList() {
+  const sel = $('rCity');
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = t('custom');
+  sel.appendChild(none);
+  for (const c of CITIES) {
+    const o = document.createElement('option');
+    o.value = c[0];
+    o.textContent = lang === 'zh' ? c[1] : c[2];
+    sel.appendChild(o);
+  }
+  sel.value = 'xian';
+}
+buildCityList();
+$('rLat').value = real.lat;
+$('rLon').value = real.lon;
+jdToFields(real.jd);
+
+// Time rate: log slider, 1x .. 1e7x (about a year every 3 s)
+function fmtRate(r) {
+  const x = r < 1000 ? r.toFixed(0) : r.toExponential(1);
+  if (r < 60) return `${x}×`;
+  if (r < 3600) return `${x}× (${(r / 60).toFixed(1)} min/s)`;
+  if (r < 86400) return `${x}× (${(r / 3600).toFixed(1)} h/s)`;
+  if (r < 86400 * 90) return `${x}× (${(r / 86400).toFixed(1)} d/s)`;
+  return `${x}× (${(r / 86400 / 365.25).toFixed(2)} yr/s)`;
+}
+$('rRate').addEventListener('input', () => {
+  real.rate = Math.pow(10, Number($('rRate').value) / 20);
+  $('rateVal').textContent = fmtRate(real.rate);
+  requestRender();
+});
+$('rateVal').textContent = fmtRate(real.rate);
+$('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
+$('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
+
+// Debug handle (used by the browser checks in PLAN.md)
+window.__orbit = { real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode, sunDir: _sunDir, poleDirScene, toScene };
 
 // ---- Animation loop (power & heat friendly) ----
 const worldTime = { value: 0 };
@@ -1190,12 +1958,19 @@ function updateScene(dt) {
   worldTime.value += dt;
   angle += orbitDegPerSec() * (Math.PI / 180) * dt;
 
-  // Orbit: Earth's center travels on a circle in the ecliptic (XZ) plane
-  earthPivot.position.set(
-    Math.cos(angle) * ORBIT_RADIUS,
-    0,
-    Math.sin(angle) * ORBIT_RADIUS
-  );
+  if (real.on) {
+    // Real-sky mode: the calendar clock drives everything (see PLAN.md).
+    real.jd += real.rate * dt / 86400;
+    applyRealState();
+  } else {
+    // Orbit: Earth's center travels on a circle in the ecliptic (XZ) plane,
+    // counterclockwise seen from the north ecliptic pole (+Y), like the spin.
+    earthPivot.position.set(
+      Math.cos(angle) * ORBIT_RADIUS,
+      0,
+      -Math.sin(angle) * ORBIT_RADIUS
+    );
+  }
 
   if (!observerMode) {
     // Follow camera (relative view is preserved; drag still works as usual)
@@ -1210,16 +1985,18 @@ function updateScene(dt) {
   updateRays(hitRays, RAY_HIT, true);
   updateRays(missRays, RAY_MISS, false);
 
-  // Moon: rides the Earth, orbiting once per 27.32 days at 100% (the real
-  // ratio), independently adjustable via the Moon slider.
-  moonAngle += (2 * Math.PI / dayLenSec()) * (MOON_ORBITS_PER_YEAR / DAYS_YEAR) * moonFactor() * dt;
-  moonGroup.position.copy(earthPivot.position);
-  moonGroup.rotation.y = moonAngle;
+  if (!real.on) {
+    // Moon: rides the Earth, orbiting once per 27.32 days at 100% (the real
+    // ratio), independently adjustable via the Moon slider.
+    moonAngle += (2 * Math.PI / dayLenSec()) * (MOON_ORBITS_PER_YEAR / DAYS_YEAR) * moonFactor() * dt;
+    moonGroup.position.copy(earthPivot.position);
+    moonGroup.rotation.y = moonAngle;
 
-  // Earth's own rotation (about its fixed, Polaris-pointing axis)
-  const spin = spinRadPerSec();
-  earth.rotation.y += spin * dt;
-  clouds.rotation.y += spin * 1.15 * dt;
+    // Earth's own rotation (about its fixed, Polaris-pointing axis)
+    const spin = spinRadPerSec();
+    earth.rotation.y += spin * dt;
+    clouds.rotation.y += spin * 1.15 * dt;
+  }
 
   // Hint line: from Earth's north pole toward Polaris (reused vectors/buffers)
   _northPole.copy(earthPivot.position).addScaledVector(POLARIS_DIR, 2.6);
@@ -1272,8 +2049,10 @@ requestAnimationFrame(animate);
       lastRenderTime = now;
       needsRender = false;
       measureFps();
+      if (real.on) applyRealState();   // edits to date/place apply while paused
       if (observerMode) updateObserverView();
       if (!observerMode) controls.update();
+      syncSky();
       renderer.render(scene, camera);
     }
     return;
@@ -1288,6 +2067,7 @@ requestAnimationFrame(animate);
     updateScene(dt);
     if (observerMode) updateObserverView();
     if (!observerMode) controls.update();
+    syncSky();
     renderer.render(scene, camera);
   }
 }

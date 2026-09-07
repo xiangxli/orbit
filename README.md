@@ -1,6 +1,8 @@
 # orbit
 
-A true-scale interactive demonstration of the Earth orbiting the Sun, built with Three.js. Open `index.html` in a browser.
+A true-scale interactive demonstration of the Earth orbiting the Sun, built with Three.js,
+plus a **real-sky mode**: pick any date (3000 BC to AD 3000) and any place on Earth and
+see that sky, with the Chinese constellations (三垣二十八宿). Open `index.html` in a browser.
 
 ## Features
 
@@ -11,6 +13,54 @@ A true-scale interactive demonstration of the Earth orbiting the Sun, built with
 - Annual view: fixed local time — only the ~1°/day orbital drift remains
 - Big Dipper (7 real stars + Alcor), the Taoist nine-star Dipper (洞明/隐元), Polaris, starfield
 - i18n (device-language detection, English default), collapsible HUD
+
+### Real sky (date & place)
+
+Tick **Real sky** in the panel. The demo's free-running clock is replaced by a real
+calendar clock (UT Julian Day) that drives everything:
+
+- **Date/time**: year (astronomical numbering: 0 = 1 BC, −1 = 2 BC), month, day,
+  hour, minute. Julian calendar before 1582-10-15, Gregorian after (or force either).
+  Time is local mean solar time by longitude (what "the hour" meant before time zones),
+  or UTC. `Now`, ±1 h, ±1 d buttons; a log time-rate slider from real time to ~1 yr per 3 s.
+- **Place**: a preset list (historical Chinese capitals first), lat/lon fields, or click
+  the globe in the free view.
+- **Sky**: 5,159 stars (HYG, V ≤ 6.0 plus every star on a constellation line), colours
+  from B−V, proper motion applied; 318 Chinese xingguan with lines and names; the Moon at
+  its true position and distance (phase from the lighting); the Sun.
+- **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
+  only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
+  aberration or refraction (all < 1′ except refraction near the horizon).
+- **Observer view**: horizon, cardinal points, drag to look around, wheel/pinch to zoom.
+  Stars fade and the sky turns blue by day.
+- Readouts: local sidereal time, Sun altitude/azimuth, Moon phase, and the epoch's pole
+  star (nearest star brighter than V 4.5 to the pole of date).
+
+The demo's speed sliders are disabled in real-sky mode (they would break the calendar).
+
+## Files
+
+| File | Role |
+|---|---|
+| `index.html` | The whole app (Three.js scene, HUD, real-sky mode) |
+| `astro.js` | Pure astronomy: calendars/JD, ΔT, sidereal time, obliquity, precession, Sun, Moon, coordinate transforms. Classic script (browser) + CommonJS (node) |
+| `stars.js`, `constellations.js` | Generated data (see `tools/build_data.py`) |
+| `test/` | `node --test test/` — Meeus worked examples and historical sanity checks |
+| `PLAN.md` | Design decisions and frame conventions for the real-sky mode. Read it before touching the coordinate code |
+
+`astro.js` and the data files are classic scripts, not ES modules, so the page still works
+from `file://`. Three.js itself comes from a CDN.
+
+## Data sources and licences
+
+- Star catalog: [HYG v4.1](https://github.com/astronexus/HYG-Database) — CC BY-SA 4.0.
+- Chinese constellations and star names: [Stellarium sky culture "chinese"](https://github.com/Stellarium/stellarium-skycultures/tree/master/chinese)
+  (lines and names based on Yi Shitong's *Chinese and Western Contrast Star Chart and Catalogue 1950.0*
+  and Sun Xiaochun & Kistemaker's *The Chinese Sky during the Han*) — CC BY-SA.
+- Algorithms: Jean Meeus, *Astronomical Algorithms*, 2nd ed.; ΔT polynomials from Espenak & Meeus.
+
+Regenerate the data files with `python3 tools/build_data.py` after downloading the sources
+listed at the top of that script.
 
 ## Design decisions
 
@@ -26,6 +76,13 @@ composition the page opens with (Earth centered, the Sun beside it on the left):
   toward the star (done directly, without animating the rotation).
 - The perpendicular is computed in 3D (with a horizontal fallback), so stars high
   in the sky (Polaris, the Dipper) are framed beside the Earth too.
+
+### Orbit direction
+
+The Earth orbits counterclockwise seen from the north ecliptic pole, the same sense
+as its spin. (Before the real-sky work the demo orbited clockwise; nothing in the demo
+depended on the sense, but the real sky does: the Sun must drift eastward through the
+stars.)
 
 ## Notes: sidereal day vs solar day, and the 365 vs 366 count
 
