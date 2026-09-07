@@ -98,6 +98,71 @@
   .ptab b { color: var(--text); font-weight: 500; }
   .ptab .down { opacity: 0.45; }
 
+  /* Controls drawn in the panel's own style instead of the browser's widgets */
+  :root { color-scheme: dark; }
+  input[type="number"] {
+    appearance: textfield; -moz-appearance: textfield; text-align: center;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"]:hover, select:hover { border-color: var(--accent-line); }
+  select {
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 22px !important;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238fc8ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 6px;
+  }
+  select option { background: #0e1420; color: var(--text); }
+  input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none; width: 15px; height: 15px; flex: none; margin: 0;
+    border: 1px solid var(--line); border-radius: 4px; background: rgba(255, 255, 255, 0.05);
+    position: relative; cursor: pointer; transition: background 0.15s, border-color 0.15s;
+  }
+  input[type="checkbox"]:hover { border-color: var(--accent-line); }
+  input[type="checkbox"]:checked { background: var(--accent-soft); border-color: var(--accent); }
+  input[type="checkbox"]:checked::after {
+    content: ''; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+    border: solid var(--accent); border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  input[type="range"] {
+    appearance: none; -webkit-appearance: none; height: 4px !important; border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12); outline: none; cursor: pointer; margin: 8px 0;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #0b1220; box-shadow: 0 0 8px rgba(143, 200, 255, 0.55);
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); box-shadow: 0 0 12px rgba(143, 200, 255, 0.8); }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent); border: 2px solid #0b1220; box-shadow: 0 0 8px rgba(143, 200, 255, 0.55);
+  }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); }
+  :focus-visible { outline: 1px solid var(--accent-line); outline-offset: 1px; }
+
+  /* Custom dropdowns (the native <select> stays in the DOM for the logic, hidden) */
+  select.dd-native { display: none !important; }
+  .dd-btn, .row .dd-btn, #welcome .dd-btn, #welcome .row .dd-btn {
+    display: flex; align-items: center; min-width: 0; width: 50px; flex: none; margin: 0;
+    text-align: left; cursor: pointer; font-size: 12px; padding: 3px 22px 3px 6px; position: relative;
+    background-color: rgba(255, 255, 255, 0.06); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; transition: border-color 0.15s, background-color 0.15s;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238fc8ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 6px;
+  }
+  .dd-btn.wide, .row .dd-btn.wide, #welcome .dd-btn.wide, #welcome .row .dd-btn.wide { flex: 1; width: auto; }
+  .dd-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dd-btn:hover, .dd-btn.open, .row .dd-btn:hover, .row .dd-btn.open, #welcome .dd-btn:hover { border-color: var(--accent-line); background-color: var(--accent-soft); }
+  .dd-menu {
+    position: fixed; z-index: 30; display: none; max-height: 280px; overflow-y: auto; padding: 4px;
+    border-radius: 10px; background: rgba(10, 14, 22, 0.94); animation: none; scrollbar-width: thin;
+  }
+  .dd-menu.open { display: block; }
+  .dd-item { padding: 6px 10px; border-radius: 6px; cursor: pointer; color: var(--text); font-size: 12px; white-space: nowrap; }
+  .dd-item:hover { background: var(--accent-soft); }
+  .dd-item.sel { color: var(--accent); }
+  .dd-group { font-size: 10px; color: var(--muted); padding: 8px 10px 2px; letter-spacing: 0.08em; }
+
   /* Bottom toolbar (real-sky mode) */
   #toolbar {
     position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
@@ -963,7 +1028,7 @@ const I18N = {
     lblPole: 'Pole star:',
     pickHint: 'Free view: click the globe to pick a place',
     custom: '\u2014 custom \u2014',
-    basisLmt: 'Local mean solar time',
+    basisLmt: 'Local time (LMT)',
     basisUtc: 'UTC',
     calAuto: 'Auto (Julian before 1582-10-15)',
     calJulian: 'Julian',
@@ -1045,7 +1110,7 @@ const I18N = {
     lblPole: '\u6781\u661F\uFF1A',
     pickHint: '\u81EA\u7531\u89C6\u89D2\u4E0B\u70B9\u51FB\u5730\u7403\u53EF\u9009\u5730\u70B9',
     custom: '\u2014 \u81EA\u5B9A\u4E49 \u2014',
-    basisLmt: '\u5F53\u5730\u5E73\u592A\u9633\u65F6',
+    basisLmt: '\u5F53\u5730\u5E73\u65F6',
     basisUtc: 'UTC',
     calAuto: '\u81EA\u52A8\uFF081582-10-15 \u524D\u7528\u5112\u7565\u5386\uFF09',
     calJulian: '\u5112\u7565\u5386',
@@ -2831,6 +2896,87 @@ $('wStart').addEventListener('click', () => {
 $('wDemo').addEventListener('click', () => { hideWelcome(); setRealMode(false); requestRender(); });
 $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
 $('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
+
+// ---- Custom dropdowns: the panel's own menu instead of the OS select popup ----
+// Each <select> stays in the DOM (hidden) and keeps its value and change
+// listeners; a button shows the current label and a fixed-position menu
+// lists the options (optgroups become headings). Programmatic `sel.value = x`
+// refreshes the label through a property hook.
+const ddMenu = document.createElement('div');
+ddMenu.className = 'dd-menu glass';
+document.body.appendChild(ddMenu);
+let ddOpenFor = null;
+function ddClose() {
+  ddMenu.classList.remove('open');
+  if (ddOpenFor) ddOpenFor.btn.classList.remove('open');
+  ddOpenFor = null;
+}
+function ddItem(sel, o) {
+  const it = document.createElement('div');
+  it.className = 'dd-item' + (o.selected ? ' sel' : '');
+  it.textContent = o.textContent;
+  it.addEventListener('click', () => {
+    sel.value = o.value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    ddClose();
+  });
+  return it;
+}
+function ddOpen(sel, btn) {
+  ddMenu.innerHTML = '';
+  for (const node of sel.children) {
+    if (node.tagName === 'OPTGROUP') {
+      const g = document.createElement('div');
+      g.className = 'dd-group';
+      g.textContent = node.label;
+      ddMenu.appendChild(g);
+      for (const o of node.children) ddMenu.appendChild(ddItem(sel, o));
+    } else {
+      ddMenu.appendChild(ddItem(sel, node));
+    }
+  }
+  const r = btn.getBoundingClientRect();
+  ddMenu.style.minWidth = Math.max(140, r.width) + 'px';
+  ddMenu.style.left = Math.max(8, Math.min(r.left, innerWidth - 8 - Math.max(140, r.width))) + 'px';
+  ddMenu.classList.add('open');
+  const h = ddMenu.offsetHeight;
+  ddMenu.style.top = (r.bottom + 4 + h > innerHeight - 8 && r.top - 4 - h > 8 ? r.top - 4 - h : r.bottom + 4) + 'px';
+  btn.classList.add('open');
+  ddOpenFor = { sel, btn };
+  const cur = ddMenu.querySelector('.dd-item.sel');
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function makeDropdown(sel) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dd-btn' + (sel.classList.contains('wide') ? ' wide' : '');
+  const span = document.createElement('span');
+  btn.appendChild(span);
+  sel.insertAdjacentElement('afterend', btn);
+  sel.classList.add('dd-native');
+  const refresh = () => {
+    const o = sel.options[sel.selectedIndex];
+    span.textContent = o ? o.textContent : '';
+  };
+  refresh();
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (ddOpenFor && ddOpenFor.sel === sel) ddClose();
+    else ddOpen(sel, btn);
+  });
+  const desc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  Object.defineProperty(sel, 'value', {
+    get() { return desc.get.call(this); },
+    set(v) { desc.set.call(this, v); refresh(); },
+    configurable: true,
+  });
+  sel.addEventListener('change', refresh);
+}
+for (const sel of document.querySelectorAll('select')) makeDropdown(sel);
+addEventListener('pointerdown', (e) => { if (ddOpenFor && !ddMenu.contains(e.target) && e.target !== ddOpenFor.btn && !ddOpenFor.btn.contains(e.target)) ddClose(); });
+addEventListener('keydown', (e) => { if (e.key === 'Escape') ddClose(); });
+addEventListener('resize', ddClose);
+$('hudBody').addEventListener('scroll', ddClose);
 
 // Debug handle (used by the browser checks in PLAN.md)
 window.__orbit = {
