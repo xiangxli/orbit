@@ -311,6 +311,10 @@
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
       <label class="realOnly"><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
       <label class="realOnly"><input type="checkbox" id="planets" checked /> <span id="lblPlanets">Planets (五星)</span></label>
+      <label class="realOnly"><input type="checkbox" id="starNames" checked /> <span id="lblStarNames">Bright star names</span></label>
+      <label class="realOnly"><input type="checkbox" id="refMeridian" /> <span id="lblRefMeridian">Meridian</span></label>
+      <label class="realOnly"><input type="checkbox" id="refEquator" /> <span id="lblRefEquator">Celestial equator</span></label>
+      <label class="realOnly"><input type="checkbox" id="refEcliptic" /> <span id="lblRefEcliptic">Ecliptic</span></label>
       <label><input type="checkbox" id="moon" checked /> <span id="lblMoon">Moon</span></label>
       <label><input type="checkbox" id="clouds" checked /> <span id="lblClouds">Clouds layer</span></label>
       <label><input type="checkbox" id="equator" checked /> <span id="lblEquator">Equator</span></label>
@@ -369,6 +373,8 @@
   <span class="sep"></span>
   <button id="tbNow">Now</button>
   <button id="tbTonight">Tonight</button>
+  <span class="sep"></span>
+  <button id="tbShare">Share link</button>
 </div>
 
 <div id="starInfo" class="glass"></div>
@@ -967,6 +973,10 @@ $('lat').value = 45;
 $('conLines').checked = true;
 $('conNames').checked = true;
 $('planets').checked = true;
+$('starNames').checked = true;
+$('refMeridian').checked = false;
+$('refEquator').checked = false;
+$('refEcliptic').checked = false;
 $('rRate').value = 0;
 $('rBasis').value = 'lmt';
 $('rCal').value = 'auto';
@@ -1055,6 +1065,8 @@ const I18N = {
     moonWord: 'Moon ', occOccult: 'occults ', occGraze: 'grazes ', occNear: 'passes ', occConj: 'near ', occMin: 'closest',
     infoSep: 'separation', moonRadiusWord: 'Moon radius', moonAltWord: 'Moon alt', infoDist: 'distance',
     infoElong: 'elongation', infoPhase: 'phase',
+    lblStarNames: 'Bright star names', lblRefMeridian: 'Meridian', lblRefEquator: 'Celestial equator', lblRefEcliptic: 'Ecliptic',
+    tbShare: 'Share link', copied: 'Copied',
   },
   zh: {
     title: '\u5730\u7403 \u2022 \u592A\u9633\u7CFB',
@@ -1137,6 +1149,8 @@ const I18N = {
     moonWord: '\u6708', occOccult: '\u63A9', occGraze: '\u51CC', occNear: '\u72AF', occConj: '\u5408', occMin: '\u6700\u8FD1',
     infoSep: '\u89D2\u8DDD', moonRadiusWord: '\u6708\u9762\u534A\u5F84', moonAltWord: '\u6708\u9AD8', infoDist: '\u8DDD\u79BB',
     infoElong: '\u8DDD\u65E5', infoPhase: '\u76F8\u89D2',
+    lblStarNames: '\u4EAE\u661F\u540D', lblRefMeridian: '\u5B50\u5348\u7EBF', lblRefEquator: '\u5929\u8D64\u9053', lblRefEcliptic: '\u9EC4\u9053',
+    tbShare: '\u5206\u4EAB\u94FE\u63A5', copied: '\u5DF2\u590D\u5236',
   },
 };
 
@@ -1235,6 +1249,11 @@ function applyLang() {
   set('lblView', d.lblView);
   set('lblPlanets', d.lblPlanets);
   set('lblOccult', d.lblOccult);
+  set('lblStarNames', d.lblStarNames);
+  set('lblRefMeridian', d.lblRefMeridian);
+  set('lblRefEquator', d.lblRefEquator);
+  set('lblRefEcliptic', d.lblRefEcliptic);
+  set('tbShare', d.tbShare);
 }
 applyLang();
 
@@ -1626,6 +1645,7 @@ const real = {
   az: 180, alt: 40,                         // observer look direction (deg): south, mid-sky
   yearRate: 0,                              // "precession" preset: whole tropical years per second
 };
+let suppressEvening = false;               // set while restoring a shared URL
 
 // Historical capitals first, then a few world cities. [id, zh, en, lat, lon]
 const CITIES = [
@@ -2004,6 +2024,23 @@ const selMarker = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeRingTextu
 selMarker.visible = false;
 skyGroup.add(selMarker);
 
+// Bright star names: labels for named stars to V 3.0, shown by tiers of
+// magnitude depending on the field of view (see updateLabelScale). The text
+// sits to the lower right of the star (sprite anchor offset).
+const starLabels = [];
+for (let i = 0; i < N_STARS; i++) {
+  const s = STARS.stars[i], hip = s[0];
+  if (s[3] > 3.0 || !hip) continue;
+  const name = lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip]);
+  if (!name) continue;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(name, '#b9cfee'), transparent: true, depthWrite: false, opacity: 0.85 }));
+  sp.center.set(-0.05, 1.15);
+  sp.userData.mag = s[3];
+  starLabels.push({ sp, i });
+  skyGroup.add(sp);
+}
+let starNamesOn = true;
+
 // Star positions for an epoch: J2000 + proper motion. Rebuilt when the
 // simulated date drifts more than 5 years from the last build.
 let starEpochJd = null;
@@ -2031,6 +2068,7 @@ function buildStarPositions(jdTT) {
     haloPos[k * 3 + 2] = starPos[i * 3 + 2];
   });
   haloGeo.attributes.position.needsUpdate = true;
+  for (const { sp, i } of starLabels) sp.position.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).multiplyScalar(0.985);
   starEpochJd = jdTT;
 }
 
@@ -2138,6 +2176,50 @@ for (const [text, x, y] of [['N', 0, 1], ['E', 1, 0], ['S', 0, -1], ['W', -1, 0]
   cardinalLabels.push(sp);
 }
 
+// ---- Reference lines: ecliptic (fixed in the scene), celestial equator of
+// date (follows the precessing pole), meridian (north–zenith–south, follows
+// the observer). All off by default.
+const REF_N = 180;
+const refMat = new THREE.LineBasicMaterial({ color: 0x9fb8e0, transparent: true, opacity: 0.45, depthWrite: false });
+function makeRefLine(closed, parent) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((REF_N + 1) * 3), 3));
+  const line = closed ? new THREE.LineLoop(g, refMat) : new THREE.Line(g, refMat);
+  line.frustumCulled = false;
+  line.visible = false;
+  parent.add(line);
+  return line;
+}
+const eclipticLine = makeRefLine(true, skyGroup);
+const equatorLine = makeRefLine(true, skyGroup);
+const meridianLine = makeRefLine(false, horizonGroup);
+{
+  // ecliptic: the scene's XZ plane; meridian: local YZ plane of the horizon frame, horizon to horizon
+  const e = eclipticLine.geometry.attributes.position.array;
+  const m = meridianLine.geometry.attributes.position.array;
+  for (let k = 0; k <= REF_N; k++) {
+    const a = (k / REF_N) * Math.PI * 2;
+    e[k * 3] = Math.cos(a) * R_SKY * 0.99; e[k * 3 + 1] = 0; e[k * 3 + 2] = Math.sin(a) * R_SKY * 0.99;
+    const b = (k / REF_N) * Math.PI;   // 0 = north horizon, π/2 = zenith, π = south horizon
+    m[k * 3] = 0; m[k * 3 + 1] = Math.cos(b) * R_HORIZON * 0.985; m[k * 3 + 2] = Math.sin(b) * R_HORIZON * 0.985;
+  }
+  eclipticLine.geometry.attributes.position.needsUpdate = true;
+  meridianLine.geometry.attributes.position.needsUpdate = true;
+}
+const _eqU = new THREE.Vector3(), _eqW = new THREE.Vector3();
+function updateEquatorLine() {
+  _eqU.copy(equinoxDirScene);
+  _eqW.crossVectors(poleDirScene, _eqU);
+  const p = equatorLine.geometry.attributes.position.array;
+  for (let k = 0; k <= REF_N; k++) {
+    const a = (k / REF_N) * Math.PI * 2, c = Math.cos(a) * R_SKY * 0.99, s = Math.sin(a) * R_SKY * 0.99;
+    p[k * 3] = _eqU.x * c + _eqW.x * s;
+    p[k * 3 + 1] = _eqU.y * c + _eqW.y * s;
+    p[k * 3 + 2] = _eqU.z * c + _eqW.z * s;
+  }
+  equatorLine.geometry.attributes.position.needsUpdate = true;
+}
+
 // Labels keep a constant on-screen size: world height scales with the FOV.
 let labelFov = -1;
 function updateLabelScale() {
@@ -2153,6 +2235,12 @@ function updateLabelScale() {
   const hc = h * 1.6;
   for (const sp of cardinalLabels) sp.scale.set(hc * 4, hc, 1);
   for (const sp of planetLabels) sp.scale.set(h * 4.6, h * 1.15, 1);
+  // Star names: brighter tiers only at wide fields, more as you zoom in
+  const maxMag = camera.fov > 45 ? 1.5 : (camera.fov > 20 ? 2.5 : 3.0);
+  for (const { sp } of starLabels) {
+    sp.visible = starNamesOn && sp.userData.mag <= maxMag;
+    sp.scale.set(h * 3.2, h * 0.8, 1);
+  }
   selMarker.scale.set(h * 1.4, h * 1.4, 1);
   // The Moon label sits at the Moon's distance, not on the sky sphere
   const hm = MOON_ORBIT * Math.tan(THREE.MathUtils.degToRad(1.3 * camera.fov / 60));
@@ -2278,7 +2366,10 @@ function applyRealState() {
   if (Math.abs(night - lastNight) > 0.02) {   // names fade with the stars by day
     lastNight = night;
     for (const sp of conLabels.children) sp.material.opacity = (sp.userData.major ? 0.95 : 0.7) * night;
+    for (const { sp } of starLabels) sp.material.opacity = 0.85 * night;
+    refMat.opacity = 0.45 * Math.max(night, 0.25);
   }
+  if (equatorLine.visible) updateEquatorLine();
   if (observerMode) {
     const k = THREE.MathUtils.smoothstep(sunAltDeg, -8, 6);
     renderer.setClearColor(_skyCol.setRGB(0.42 * k, 0.62 * k, 0.9 * k));
@@ -2340,6 +2431,7 @@ function updateRealReadouts(tt, sv) {
     `${c.year}-${pad(c.month)}-${pad(c.day)} ${pad(c.hour)}:${pad(c.minute)}:${pad(Math.floor(c.second))} ${real.basis === 'lmt' ? 'LMT' : 'UTC'}`;
   if (document.activeElement !== $('rYearSlider')) $('rYearSlider').value = THREE.MathUtils.clamp(c.year, -3000, 3000);
   if (!fieldFocused() && !paused) jdToFields(real.jd);
+  writeUrlState();
 }
 
 // ---- Observer view in real-sky mode: stand at (lat, lon), look around ----
@@ -2564,6 +2656,10 @@ function findMoonPlanetEvent(direction) {
 $('occPrev').addEventListener('click', () => findMoonPlanetEvent(-1));
 $('occNext').addEventListener('click', () => findMoonPlanetEvent(1));
 $('planets').addEventListener('change', (e) => { setPlanetsVisible(e.target.checked); requestRender(); });
+$('starNames').addEventListener('change', (e) => { starNamesOn = e.target.checked; labelFov = -1; updateLabelScale(); requestRender(); });
+$('refMeridian').addEventListener('change', (e) => { meridianLine.visible = e.target.checked; requestRender(); });
+$('refEquator').addEventListener('change', (e) => { equatorLine.visible = e.target.checked; if (e.target.checked) updateEquatorLine(); requestRender(); });
+$('refEcliptic').addEventListener('change', (e) => { eclipticLine.visible = e.target.checked; requestRender(); });
 
 // Keyboard: arrows look around, +/- zoom (sky view of real-sky mode)
 addEventListener('keydown', (e) => {
@@ -2622,7 +2718,7 @@ function setRealMode(on) {
   if (on) {
     jdToFields(real.jd);
     applyRealState();
-    if (sunAltDeg > -6) toEvening();   // daytime: nothing to see, jump to tonight
+    if (sunAltDeg > -6 && !suppressEvening) toEvening();   // daytime: nothing to see, jump to tonight
     if (!observerMode) setObserverMode(true);
     else { obsFov = REAL_FOV; real.az = 180; real.alt = 40; }
   } else {
@@ -2978,6 +3074,70 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') ddClose(); });
 addEventListener('resize', ddClose);
 $('hudBody').addEventListener('scroll', ddClose);
 
+// ---- URL state: ?t=<JD>&lat&lon&az&alt&fov[&basis][&cal] ----
+// Written (throttled by the readout tick) while in real-sky mode; a link
+// with these parameters opens straight into that sky.
+let lastUrl = '';
+function urlStateString() {
+  const p = new URLSearchParams();
+  p.set('t', real.jd.toFixed(5));
+  p.set('lat', real.lat.toFixed(2));
+  p.set('lon', real.lon.toFixed(2));
+  if (observerMode) {
+    p.set('az', real.az.toFixed(1));
+    p.set('alt', real.alt.toFixed(1));
+    p.set('fov', obsFov.toFixed(1));
+  }
+  if (real.basis !== 'lmt') p.set('basis', real.basis);
+  if (real.cal !== 'auto') p.set('cal', real.cal);
+  return '?' + p.toString();
+}
+function writeUrlState() {
+  if (!real.on) return;
+  const s = urlStateString();
+  if (s === lastUrl) return;
+  lastUrl = s;
+  try { history.replaceState(null, '', s); } catch {}   // file:// may refuse; the share button still works
+}
+function applyUrlState() {
+  const p = new URLSearchParams(location.search);
+  const jd = Number(p.get('t'));
+  if (!p.has('t') || !Number.isFinite(jd)) return false;
+  real.jd = jd;
+  if (p.has('lat')) real.lat = THREE.MathUtils.clamp(Number(p.get('lat')) || 0, -90, 90);
+  if (p.has('lon')) real.lon = ((Number(p.get('lon')) || 0) + 540) % 360 - 180;
+  real.basis = p.get('basis') === 'utc' ? 'utc' : 'lmt';
+  real.cal = ['julian', 'gregorian'].includes(p.get('cal')) ? p.get('cal') : 'auto';
+  $('rBasis').value = real.basis;
+  $('rCal').value = real.cal;
+  $('rLat').value = real.lat;
+  $('rLon').value = real.lon;
+  const city = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.01 && Math.abs(c[4] - real.lon) < 0.01);
+  $('rCity').value = city ? city[0] : '';
+  hideWelcome();
+  suppressEvening = true;
+  setRealMode(true);
+  suppressEvening = false;
+  if (p.has('az')) real.az = Astro.norm360(Number(p.get('az')) || 0);
+  if (p.has('alt')) real.alt = THREE.MathUtils.clamp(Number(p.get('alt')) || 0, -25, 89.9);
+  if (p.has('fov')) obsFov = THREE.MathUtils.clamp(Number(p.get('fov')) || REAL_FOV, 8, OBSERVER_FOV);
+  requestRender();
+  return true;
+}
+$('tbShare').addEventListener('click', async () => {
+  const url = location.href.split('?')[0] + urlStateString();
+  const btn = $('tbShare');
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = t('copied');
+  } catch {
+    prompt('URL', url);
+  }
+  setTimeout(() => { btn.textContent = t('tbShare'); }, 1500);
+});
+// applyUrlState() runs at the very end of the module: it drives the scene,
+// which needs the animation-loop state declared below.
+
 // Debug handle (used by the browser checks in PLAN.md)
 window.__orbit = {
   real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode,
@@ -3156,6 +3316,7 @@ addEventListener('resize', () => {
 
 requestAnimationFrame(animate);
 refreshDayOfYear();
+applyUrlState();
 </script>
 
 </body>

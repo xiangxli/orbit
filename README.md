@@ -51,6 +51,11 @@ replaced by a real calendar clock (UT Julian Day) that drives everything:
   look around, +/− zoom. Entering real-sky mode in daytime jumps to 21:00 local.
 - **Horizon**: a low ridge of hills the stars set behind, and an airglow / twilight band
   that warms up toward the Sun at dusk.
+- **Names and lines**: bright stars carry their names (to V 1.5 at wide fields, V 3 when
+  zoomed in); toggles for the meridian, the celestial equator of date and the ecliptic.
+- **Share**: in real-sky mode the address bar tracks time, place and view
+  (`?t=<JD>&lat&lon&az&alt&fov`); "Share link" copies it, and such a link opens straight
+  into that sky.
 - **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
   only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
   aberration or refraction (all < 1′ except refraction near the horizon).
