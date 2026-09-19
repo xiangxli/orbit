@@ -142,7 +142,7 @@
 
   /* Custom dropdowns (the native <select> stays in the DOM for the logic, hidden) */
   select.dd-native { display: none !important; }
-  .dd-btn, .row .dd-btn, #welcome .dd-btn, #welcome .row .dd-btn {
+  .dd-btn, .row .dd-btn {
     display: flex; align-items: center; min-width: 0; width: 50px; flex: none; margin: 0;
     text-align: left; cursor: pointer; font-size: 12px; padding: 3px 22px 3px 6px; position: relative;
     background-color: rgba(255, 255, 255, 0.06); color: var(--text);
@@ -150,9 +150,9 @@
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%238fc8ff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
     background-repeat: no-repeat; background-position: right 8px center; background-size: 10px 6px;
   }
-  .dd-btn.wide, .row .dd-btn.wide, #welcome .dd-btn.wide, #welcome .row .dd-btn.wide { flex: 1; width: auto; }
+  .dd-btn.wide, .row .dd-btn.wide { flex: 1; width: auto; }
   .dd-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dd-btn:hover, .dd-btn.open, .row .dd-btn:hover, .row .dd-btn.open, #welcome .dd-btn:hover { border-color: var(--accent-line); background-color: var(--accent-soft); }
+  .dd-btn:hover, .dd-btn.open, .row .dd-btn:hover, .row .dd-btn.open { border-color: var(--accent-line); background-color: var(--accent-soft); }
   .dd-menu {
     position: fixed; z-index: 30; display: none; max-height: 280px; overflow-y: auto; padding: 4px;
     border-radius: 10px; background: rgba(10, 14, 22, 0.94); animation: none; scrollbar-width: thin;
@@ -173,20 +173,6 @@
   #toolbar button:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
   #toolbar button.on { color: var(--text); background: var(--accent-soft); }
   #toolbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 5px; flex: none; }
-
-  /* Welcome card: pick an era, the sky starts immediately */
-  #welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); z-index: 5; }
-  #welcome.hidden { display: none; }
-  #welcome .card { width: min(460px, calc(100vw - 32px)); padding: 22px 24px; }
-  #welcome h2 { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px; }
-  #welcome .wGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-  #welcome .wGrid button.wide { grid-column: 1 / -1; }
-  #welcome .wActions { display: flex; gap: 8px; margin-top: 8px; }
-  #welcome .wLoc { font-size: 11px; color: var(--muted); margin-top: 12px; }
-  #welcome button { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
-  #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
-  #welcome button:hover { background: var(--accent-soft); }
-  #welcome .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
 
   /* Object info card */
   #starInfo { position: absolute; right: 16px; bottom: 76px; display: none; padding: 12px 14px; font-size: 12px; line-height: 1.6; min-width: 180px; max-width: 280px; user-select: none; }
@@ -214,24 +200,6 @@
 </head>
 <body>
 
-<div id="welcome">
-  <div class="card glass">
-    <h2 id="wTitle">Historic sky</h2>
-    <div class="wGrid">
-      <button id="wTonight" class="primary"><span id="wLblTonight">Tonight</span></button>
-      <button id="wYaodian"><span id="wLblYaodian">Yaodian, 2000 BC</span></button>
-      <button id="wHan"><span id="wLblHan">Han dynasty</span></button>
-      <button id="wGuest"><span id="wLblGuest">1054 guest star</span></button>
-      <button id="wCustom" class="wide"><span id="wLblCustom">Custom&hellip;</span></button>
-    </div>
-    <div class="wActions">
-      <button id="wDemo">Demo mode</button>
-    </div>
-    <div class="wLoc" id="wLoc"></div>
-    <div class="hint" id="wHint">Opens at night, facing south. Drag to look around, wheel to zoom, click a star to identify it.</div>
-  </div>
-</div>
-
 <div id="hud" class="glass">
   <div id="hudHeader">
     <h1 id="hudTitle">REAL SKY</h1>
@@ -247,6 +215,12 @@
     <div id="realFields">
       <details open>
         <summary id="secTime">Time</summary>
+        <div class="row">
+          <button id="pTonight"><span id="pLblTonight">Tonight</span></button>
+          <button id="pYaodian"><span id="pLblYaodian">Yaodian</span></button>
+          <button id="pHan"><span id="pLblHan">Han</span></button>
+          <button id="pGuest"><span id="pLblGuest">1054</span></button>
+        </div>
         <div class="row">
           <button id="rPlay" style="flex: 0 0 auto; min-width: 64px;">Pause</button>
           <span id="clockVal" style="flex: 1;"></span>
@@ -1054,10 +1028,9 @@ const I18N = {
     modeReal: 'Real sky', modeDemo: 'Demo',
     secTime: 'Time', secPlace: 'Place', secSky: 'Sky events', secDisplay: 'Display', secDemo: 'Demo mode (advanced)',
     tbRt: 'Real time', tb60: '1 min/s', tbSky: 'Wheeling sky', tbPrec: 'Precession', tbNow: 'Now', tbTonight: 'Tonight',
-    wTitle: 'Historic sky', wDemo: 'Demo mode',
-    wTonight: 'Tonight', wYaodian: 'Yaodian, 2000 BC', wHan: 'Han dynasty', wGuest: '1054 guest star', wCustom: 'Custom\u2026',
-    wHint: 'Opens at night, facing south. Drag to look around, wheel to zoom, click a star to identify it.',
-    wLoc: 'Location: {place} \u00B7 change it in the panel', wPlaceYou: 'your location',
+    wTonight: 'Tonight', wYaodian: 'Yaodian', wHan: 'Han', wGuest: '1054',
+    wTonightTip: 'Tonight', wYaodianTip: 'Yaodian, 2000 BC (spring-equinox dusk)',
+    wHanTip: 'Han dynasty (AD 100 summer solstice)', wGuestTip: '1054 guest star (Crab supernova)',
     lblYear: 'Year',
     stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
     pause2: 'Pause', resume: 'Resume',
@@ -1139,10 +1112,9 @@ const I18N = {
     modeReal: '\u771F\u5B9E\u661F\u7A7A', modeDemo: '\u6F14\u793A',
     secTime: '\u65F6\u95F4', secPlace: '\u5730\u70B9', secSky: '\u5929\u8C61', secDisplay: '\u663E\u793A', secDemo: '\u6F14\u793A\u6A21\u5F0F\uFF08\u9AD8\u7EA7\uFF09',
     tbRt: '\u5B9E\u65F6', tb60: '1 \u5206\u949F/\u79D2', tbSky: '\u6597\u8F6C\u661F\u79FB', tbPrec: '\u5C81\u5DEE', tbNow: '\u73B0\u5728', tbTonight: '\u4ECA\u665A',
-    wTitle: '\u5386\u53F2\u661F\u7A7A', wDemo: '\u6F14\u793A\u6A21\u5F0F',
-    wTonight: '\u4ECA\u665A', wYaodian: '\u5C27\u5178 \u516C\u5143\u524D2000', wHan: '\u6C49\u4EE3', wGuest: '1054 \u5929\u5173\u5BA2\u661F', wCustom: '\u81EA\u5B9A\u4E49\u2026',
-    wHint: '\u8FDB\u5165\u540E\u4E3A\u591C\u665A\u3001\u9762\u5411\u5357\u65B9\u3002\u62D6\u52A8\u73AF\u89C6\uFF0C\u6EDA\u8F6E\u7F29\u653E\uFF0C\u70B9\u51FB\u661F\u661F\u8BC6\u522B\u3002',
-    wLoc: '\u4F4D\u7F6E\uFF1A{place} \u00B7 \u53EF\u5728\u9762\u677F\u4E2D\u4FEE\u6539', wPlaceYou: '\u4F60\u7684\u4F4D\u7F6E',
+    wTonight: '\u4ECA\u665A', wYaodian: '\u5C27\u5178', wHan: '\u6C49\u4EE3', wGuest: '1054',
+    wTonightTip: '\u4ECA\u665A', wYaodianTip: '\u5C27\u5178 \u516C\u5143\u524D2000\uFF08\u6625\u5206\u660F\uFF09',
+    wHanTip: '\u6C49\u4EE3\uFF08\u516C\u5143100\u5E74\u590F\u81F3\uFF09', wGuestTip: '1054 \u5929\u5173\u5BA2\u661F',
     lblYear: '\u5E74\u4EFD',
     stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
     pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
@@ -1221,14 +1193,14 @@ function applyLang() {
   set('tbPrec', d.tbPrec);
   set('tbNow', d.tbNow);
   set('tbTonight', d.tbTonight);
-  set('wTitle', d.wTitle);
-  set('wDemo', d.wDemo);
-  set('wHint', d.wHint);
-  set('wLblTonight', d.wTonight);
-  set('wLblYaodian', d.wYaodian);
-  set('wLblHan', d.wHan);
-  set('wLblGuest', d.wGuest);
-  set('wLblCustom', d.wCustom);
+  set('pLblTonight', d.wTonight);
+  set('pLblYaodian', d.wYaodian);
+  set('pLblHan', d.wHan);
+  set('pLblGuest', d.wGuest);
+  $('pTonight').title = d.wTonightTip;
+  $('pYaodian').title = d.wYaodianTip;
+  $('pHan').title = d.wHanTip;
+  $('pGuest').title = d.wGuestTip;
   set('lblDate', d.lblDate);
   set('lblTime', d.lblTime);
   set('lblCal', d.lblCal);
@@ -3033,62 +3005,43 @@ $('tbPrec').addEventListener('click', () => setPrecessionRate(100)); // a centur
 $('tbNow').addEventListener('click', () => $('rNow').click());
 $('tbTonight').addEventListener('click', () => { toEvening(); requestRender(); });
 
-// ---- Welcome card: pick an era, the sky starts immediately ----
-function hideWelcome() { $('welcome').classList.add('hidden'); }
-
-// Location shown on the card. Asked once (a single browser permission on
-// https; silent fallback to the default Xi'an, no further questions).
-let geoLocated = false;
-function updateWelcomeLoc() {
-  const city = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.05 && Math.abs(c[4] - real.lon) < 0.05);
-  const place = city ? (lang === 'zh' ? city[1] : city[2]) : t('wPlaceYou');
-  $('wLoc').textContent = t('wLoc').replace('{place}', place);
+// ---- Era presets (panel): jump the clock to a known sky ----
+// [year, month, day, hour, minute] in local mean time; calendar 'auto' ->
+// Julian before 1582. The Yaodian dusk is 18:35 LMT at Xi'an on the 2000 BC
+// spring equinox (the sky test/sky.test.js verifies this sky).
+const PRESETS = {
+  pYaodian: { year: -2000, month: 4, day: 7, hour: 18, minute: 35 },
+  pHan: { year: 100, month: 6, day: 23, hour: 21 },
+  pGuest: { year: 1054, month: 7, day: 4, hour: 21 },
+};
+function goToJd(jd) {
+  real.jd = jd;
+  jdToFields(real.jd);
+  applyRealState();
+  requestRender();
 }
-updateWelcomeLoc();
-if (navigator.geolocation && window.isSecureContext) {
+for (const id of Object.keys(PRESETS)) {
+  $(id).addEventListener('click', () => goToJd(Astro.calendarToJD(PRESETS[id], real.cal) - localOffsetDays()));
+}
+$('pTonight').addEventListener('click', () => {
+  goToJd(Astro.calendarToJD(utcNowFields()));
+  if (sunAltDeg > -6) toEvening();   // daytime: nothing to see, jump to 21:00
+  requestRender();
+});
+
+// ---- Location: one silent geolocation attempt ----
+// Works when served (https); denied, unavailable or file:// keeps the default
+// Xi'an without asking anything. A shared link with ?lat= wins over both.
+if (!new URLSearchParams(location.search).has('lat') && navigator.geolocation && window.isSecureContext) {
   navigator.geolocation.getCurrentPosition((pos) => {
     real.lat = pos.coords.latitude;
     real.lon = ((pos.coords.longitude + 540) % 360) - 180;
-    geoLocated = true;
     $('rLat').value = real.lat.toFixed(2);
     $('rLon').value = real.lon.toFixed(2);
     $('rCity').value = '';
-    updateWelcomeLoc();
     if (real.on) { jdToFields(real.jd); applyRealState(); requestRender(); }
   }, () => {}, { timeout: 1500, maximumAge: 600000 });
 }
-
-// Presets: [year, month, day, hour, minute] in local mean time (calendar
-// 'auto' -> Julian before 1582). The Yaodian dusk is 18:35 LMT at Xi'an on
-// the 2000 BC spring equinox (the sky test/sky.test.js verifies).
-const PRESETS = {
-  wYaodian: { year: -2000, month: 4, day: 7, hour: 18, minute: 35 },
-  wHan: { year: 100, month: 6, day: 23, hour: 21 },
-  wGuest: { year: 1054, month: 7, day: 4, hour: 21 },
-};
-function startPreset(fields) {
-  if (fields) real.jd = Astro.calendarToJD(fields, real.cal) - localOffsetDays();
-  hideWelcome();
-  if (real.on) { jdToFields(real.jd); applyRealState(); }
-  else {
-    const saved = suppressEvening;
-    suppressEvening = !!fields;   // a chosen time is kept; "Tonight" may jump to 21:00
-    setRealMode(true);
-    suppressEvening = saved;
-  }
-  requestRender();
-}
-$('wTonight').addEventListener('click', () => startPreset(null));   // now (the clock is already set to now)
-for (const id of ['wYaodian', 'wHan', 'wGuest']) {
-  $(id).addEventListener('click', () => startPreset(PRESETS[id]));
-}
-// Custom: start tonight and open the panel's Time section for the date fields.
-$('wCustom').addEventListener('click', () => {
-  startPreset(null);
-  if (hud.classList.contains('collapsed')) setHudCollapsed(false);
-  $('secTime').parentElement.open = true;
-});
-$('wDemo').addEventListener('click', () => { hideWelcome(); setRealMode(false); requestRender(); });
 $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
 $('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
 
@@ -3213,7 +3166,6 @@ function applyUrlState() {
   $('rLon').value = real.lon;
   const city = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.01 && Math.abs(c[4] - real.lon) < 0.01);
   $('rCity').value = city ? city[0] : '';
-  hideWelcome();
   suppressEvening = true;
   setRealMode(true);
   suppressEvening = false;
@@ -3415,7 +3367,12 @@ addEventListener('resize', () => {
 
 requestAnimationFrame(animate);
 refreshDayOfYear();
+// No welcome card: open straight into tonight's sky (the header switch goes to
+// the demo). A shared ?t= link overrides time, place and view; it must be read
+// BEFORE real mode starts, or writeUrlState would have already put a ?t= of
+// the current clock into the address bar.
 applyUrlState();
+setRealMode(true);
 </script>
 
 </body>
