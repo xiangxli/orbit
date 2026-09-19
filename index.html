@@ -174,16 +174,15 @@
   #toolbar button.on { color: var(--text); background: var(--accent-soft); }
   #toolbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 5px; flex: none; }
 
-  /* Welcome card: choose an era and a place */
+  /* Welcome card: pick an era, the sky starts immediately */
   #welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); z-index: 5; }
   #welcome.hidden { display: none; }
-  #welcome .card { width: min(440px, calc(100vw - 32px)); padding: 22px 24px; }
+  #welcome .card { width: min(460px, calc(100vw - 32px)); padding: 22px 24px; }
   #welcome h2 { font-size: 15px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 10px; }
-  #welcome .wYear { font-size: 44px; font-weight: 300; letter-spacing: 0.02em; text-align: center; font-variant-numeric: tabular-nums; margin: 2px 0 0; }
-  #welcome .wYear small { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
-  #welcome input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 10px; }
-  #welcome .row > span:first-child { min-width: 40px; }
-  #welcome .wActions { display: flex; gap: 8px; margin-top: 14px; }
+  #welcome .wGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+  #welcome .wGrid button.wide { grid-column: 1 / -1; }
+  #welcome .wActions { display: flex; gap: 8px; margin-top: 8px; }
+  #welcome .wLoc { font-size: 11px; color: var(--muted); margin-top: 12px; }
   #welcome button { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
   #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
   #welcome button:hover { background: var(--accent-soft); }
@@ -210,7 +209,6 @@
     #hudBody { max-height: 38vh; }
     #toolbar { bottom: 8px; overflow-x: auto; }
     #starInfo { right: 8px; left: 8px; top: 8px; bottom: auto; max-width: none; }
-    #welcome .wYear { font-size: 34px; }
   }
 </style>
 </head>
@@ -218,22 +216,19 @@
 
 <div id="welcome">
   <div class="card glass">
-    <h2 id="wTitle">Choose an era and a place</h2>
-    <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
-    <input type="range" id="wYear" min="-3000" max="3000" step="1" value="2026" />
-    <div class="row"><span id="wLblDate">Date</span>
-      <input type="number" id="wYearIn" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
-      <input type="number" id="wMonth" min="1" max="12" step="1" />
-      <input type="number" id="wDay" min="1" max="31" step="1" />
-    </div>
-    <div class="row"><span id="wLblPlace">Place</span>
-      <select id="wCity" class="wide"></select>
+    <h2 id="wTitle">Historic sky</h2>
+    <div class="wGrid">
+      <button id="wTonight" class="primary"><span id="wLblTonight">Tonight</span></button>
+      <button id="wYaodian"><span id="wLblYaodian">Yaodian, 2000 BC</span></button>
+      <button id="wHan"><span id="wLblHan">Han dynasty</span></button>
+      <button id="wGuest"><span id="wLblGuest">1054 guest star</span></button>
+      <button id="wCustom" class="wide"><span id="wLblCustom">Custom&hellip;</span></button>
     </div>
     <div class="wActions">
-      <button id="wStart" class="primary">Start</button>
       <button id="wDemo">Demo mode</button>
     </div>
-    <div class="hint" id="wHint">Opens at 21:00 local mean time, facing south. Drag to look around, wheel to zoom, click a star to identify it.</div>
+    <div class="wLoc" id="wLoc"></div>
+    <div class="hint" id="wHint">Opens at night, facing south. Drag to look around, wheel to zoom, click a star to identify it.</div>
   </div>
 </div>
 
@@ -1059,9 +1054,10 @@ const I18N = {
     modeReal: 'Real sky', modeDemo: 'Demo',
     secTime: 'Time', secPlace: 'Place', secSky: 'Sky events', secDisplay: 'Display', secDemo: 'Demo mode (advanced)',
     tbRt: 'Real time', tb60: '1 min/s', tbSky: 'Wheeling sky', tbPrec: 'Precession', tbNow: 'Now', tbTonight: 'Tonight',
-    wTitle: 'Choose an era and a place', wStart: 'Start', wDemo: 'Demo mode',
-    wHint: 'Opens at 21:00 local mean time, facing south. Drag to look around, wheel to zoom, click a star to identify it.',
-    bcHint: '(BC)',
+    wTitle: 'Historic sky', wDemo: 'Demo mode',
+    wTonight: 'Tonight', wYaodian: 'Yaodian, 2000 BC', wHan: 'Han dynasty', wGuest: '1054 guest star', wCustom: 'Custom\u2026',
+    wHint: 'Opens at night, facing south. Drag to look around, wheel to zoom, click a star to identify it.',
+    wLoc: 'Location: {place} \u00B7 change it in the panel', wPlaceYou: 'your location',
     lblYear: 'Year',
     stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
     pause2: 'Pause', resume: 'Resume',
@@ -1143,9 +1139,10 @@ const I18N = {
     modeReal: '\u771F\u5B9E\u661F\u7A7A', modeDemo: '\u6F14\u793A',
     secTime: '\u65F6\u95F4', secPlace: '\u5730\u70B9', secSky: '\u5929\u8C61', secDisplay: '\u663E\u793A', secDemo: '\u6F14\u793A\u6A21\u5F0F\uFF08\u9AD8\u7EA7\uFF09',
     tbRt: '\u5B9E\u65F6', tb60: '1 \u5206\u949F/\u79D2', tbSky: '\u6597\u8F6C\u661F\u79FB', tbPrec: '\u5C81\u5DEE', tbNow: '\u73B0\u5728', tbTonight: '\u4ECA\u665A',
-    wTitle: '\u9009\u62E9\u5E74\u4EE3\u4E0E\u5730\u70B9', wStart: '\u5F00\u59CB\u89C2\u661F', wDemo: '\u6F14\u793A\u6A21\u5F0F',
-    wHint: '\u8FDB\u5165\u540E\u4E3A\u5F53\u5730\u5E73\u592A\u9633\u65F6 21:00\u3001\u9762\u5411\u5357\u65B9\u3002\u62D6\u52A8\u73AF\u89C6\uFF0C\u6EDA\u8F6E\u7F29\u653E\uFF0C\u70B9\u51FB\u661F\u661F\u8BC6\u522B\u3002',
-    bcHint: '\uFF08\u516C\u5143\u524D\uFF09',
+    wTitle: '\u5386\u53F2\u661F\u7A7A', wDemo: '\u6F14\u793A\u6A21\u5F0F',
+    wTonight: '\u4ECA\u665A', wYaodian: '\u5C27\u5178 \u516C\u5143\u524D2000', wHan: '\u6C49\u4EE3', wGuest: '1054 \u5929\u5173\u5BA2\u661F', wCustom: '\u81EA\u5B9A\u4E49\u2026',
+    wHint: '\u8FDB\u5165\u540E\u4E3A\u591C\u665A\u3001\u9762\u5411\u5357\u65B9\u3002\u62D6\u52A8\u73AF\u89C6\uFF0C\u6EDA\u8F6E\u7F29\u653E\uFF0C\u70B9\u51FB\u661F\u661F\u8BC6\u522B\u3002',
+    wLoc: '\u4F4D\u7F6E\uFF1A{place} \u00B7 \u53EF\u5728\u9762\u677F\u4E2D\u4FEE\u6539', wPlaceYou: '\u4F60\u7684\u4F4D\u7F6E',
     lblYear: '\u5E74\u4EFD',
     stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
     pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
@@ -1225,11 +1222,13 @@ function applyLang() {
   set('tbNow', d.tbNow);
   set('tbTonight', d.tbTonight);
   set('wTitle', d.wTitle);
-  set('wStart', d.wStart);
   set('wDemo', d.wDemo);
   set('wHint', d.wHint);
-  set('wLblDate', d.lblDate);
-  set('wLblPlace', d.lblPlace);
+  set('wLblTonight', d.wTonight);
+  set('wLblYaodian', d.wYaodian);
+  set('wLblHan', d.wHan);
+  set('wLblGuest', d.wGuest);
+  set('wLblCustom', d.wCustom);
   set('lblDate', d.lblDate);
   set('lblTime', d.lblTime);
   set('lblCal', d.lblCal);
@@ -2974,20 +2973,19 @@ $('rCity').addEventListener('change', (e) => {
   requestRender();
 });
 function buildCityList() {
-  for (const sel of [$('rCity'), $('wCity')]) {
-    sel.innerHTML = '';
-    const none = document.createElement('option');
-    none.value = '';
-    none.textContent = t('custom');
-    sel.appendChild(none);
-    for (const c of CITIES) {
-      const o = document.createElement('option');
-      o.value = c[0];
-      o.textContent = lang === 'zh' ? c[1] : c[2];
-      sel.appendChild(o);
-    }
-    sel.value = 'xian';
+  const sel = $('rCity');
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = t('custom');
+  sel.appendChild(none);
+  for (const c of CITIES) {
+    const o = document.createElement('option');
+    o.value = c[0];
+    o.textContent = lang === 'zh' ? c[1] : c[2];
+    sel.appendChild(o);
   }
+  sel.value = 'xian';
 }
 buildCityList();
 $('rLat').value = real.lat;
@@ -3035,38 +3033,60 @@ $('tbPrec').addEventListener('click', () => setPrecessionRate(100)); // a centur
 $('tbNow').addEventListener('click', () => $('rNow').click());
 $('tbTonight').addEventListener('click', () => { toEvening(); requestRender(); });
 
-// ---- Welcome card: choose an era and a place, then start ----
-function updateWelcomeYear(y) {
-  $('wYearNum').textContent = y > 0 ? String(y) : String(1 - y);
-  $('wYearHint').textContent = y > 0 ? '' : t('bcHint');
-}
-{
-  const now = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
-  $('wYear').value = now.year;
-  $('wYearIn').value = now.year;
-  $('wMonth').value = now.month;
-  $('wDay').value = now.day;
-  updateWelcomeYear(now.year);
-}
-$('wYear').addEventListener('input', (e) => { $('wYearIn').value = e.target.value; updateWelcomeYear(Number(e.target.value)); });
-$('wYearIn').addEventListener('change', (e) => {
-  const y = Math.max(-3000, Math.min(3000, Number(e.target.value) || 0));
-  $('wYear').value = y; $('wYearIn').value = y; updateWelcomeYear(y);
-});
-$('wCity').addEventListener('change', (e) => {
-  $('rCity').value = e.target.value;
-  $('rCity').dispatchEvent(new Event('change'));
-});
+// ---- Welcome card: pick an era, the sky starts immediately ----
 function hideWelcome() { $('welcome').classList.add('hidden'); }
-$('wStart').addEventListener('click', () => {
-  const year = Number($('wYearIn').value), month = Number($('wMonth').value) || 1, day = Number($('wDay').value) || 1;
-  if (Number.isFinite(year)) {
-    real.jd = Astro.calendarToJD({ year, month, day, hour: 21 }, real.cal) - localOffsetDays();
-  }
+
+// Location shown on the card. Asked once (a single browser permission on
+// https; silent fallback to the default Xi'an, no further questions).
+let geoLocated = false;
+function updateWelcomeLoc() {
+  const city = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.05 && Math.abs(c[4] - real.lon) < 0.05);
+  const place = city ? (lang === 'zh' ? city[1] : city[2]) : t('wPlaceYou');
+  $('wLoc').textContent = t('wLoc').replace('{place}', place);
+}
+updateWelcomeLoc();
+if (navigator.geolocation && window.isSecureContext) {
+  navigator.geolocation.getCurrentPosition((pos) => {
+    real.lat = pos.coords.latitude;
+    real.lon = ((pos.coords.longitude + 540) % 360) - 180;
+    geoLocated = true;
+    $('rLat').value = real.lat.toFixed(2);
+    $('rLon').value = real.lon.toFixed(2);
+    $('rCity').value = '';
+    updateWelcomeLoc();
+    if (real.on) { jdToFields(real.jd); applyRealState(); requestRender(); }
+  }, () => {}, { timeout: 1500, maximumAge: 600000 });
+}
+
+// Presets: [year, month, day, hour, minute] in local mean time (calendar
+// 'auto' -> Julian before 1582). The Yaodian dusk is 18:35 LMT at Xi'an on
+// the 2000 BC spring equinox (the sky test/sky.test.js verifies).
+const PRESETS = {
+  wYaodian: { year: -2000, month: 4, day: 7, hour: 18, minute: 35 },
+  wHan: { year: 100, month: 6, day: 23, hour: 21 },
+  wGuest: { year: 1054, month: 7, day: 4, hour: 21 },
+};
+function startPreset(fields) {
+  if (fields) real.jd = Astro.calendarToJD(fields, real.cal) - localOffsetDays();
   hideWelcome();
   if (real.on) { jdToFields(real.jd); applyRealState(); }
-  else setRealMode(true);
+  else {
+    const saved = suppressEvening;
+    suppressEvening = !!fields;   // a chosen time is kept; "Tonight" may jump to 21:00
+    setRealMode(true);
+    suppressEvening = saved;
+  }
   requestRender();
+}
+$('wTonight').addEventListener('click', () => startPreset(null));   // now (the clock is already set to now)
+for (const id of ['wYaodian', 'wHan', 'wGuest']) {
+  $(id).addEventListener('click', () => startPreset(PRESETS[id]));
+}
+// Custom: start tonight and open the panel's Time section for the date fields.
+$('wCustom').addEventListener('click', () => {
+  startPreset(null);
+  if (hud.classList.contains('collapsed')) setHudCollapsed(false);
+  $('secTime').parentElement.open = true;
 });
 $('wDemo').addEventListener('click', () => { hideWelcome(); setRealMode(false); requestRender(); });
 $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
