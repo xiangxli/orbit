@@ -192,6 +192,11 @@
   #welcome .wTimer { position: absolute; left: 16px; right: 16px; bottom: 9px; height: 2px; border-radius: 1px; background: rgba(160, 190, 240, 0.12); overflow: hidden; transition: opacity 0.4s; }
   #welcome .wTimer i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; }
   #welcome .wTimer.done { opacity: 0; }
+  #welcome .wSteps { gap: 6px; }
+  #welcome .wSteps button { font-size: 11px; padding: 5px 0; border-radius: 8px; }
+  #welcome .wEra { flex: none; }
+  #welcome .wEra button { flex: none; font-size: 11px; padding: 4px 8px; background: transparent; color: var(--muted); border: 0; border-radius: 0; }
+  #welcome .wEra button.on { background: var(--accent-soft); color: var(--text); }
 
   /* Object info card */
   #starInfo { position: absolute; right: 16px; bottom: 76px; display: none; padding: 12px 14px; font-size: 12px; line-height: 1.6; min-width: 180px; max-width: 280px; user-select: none; }
@@ -225,8 +230,16 @@
     <h2 id="wTitle">Choose an era and a place</h2>
     <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
     <input type="range" id="wYear" min="-3000" max="3000" step="1" value="2026" />
+    <div class="row wSteps">
+      <button id="wToday"><span id="wLblToday">Today</span></button>
+      <button id="wM100">&minus;100</button>
+      <button id="wM1">&minus;1</button>
+      <button id="wP1">+1</button>
+      <button id="wP100">+100</button>
+    </div>
     <div class="row"><span id="wLblDate">Date</span>
-      <input type="number" id="wYearIn" class="wide" step="1" title="year (0 = 1 BC, -1 = 2 BC)" />
+      <input type="number" id="wYearIn" class="wide" min="1" step="1" title="year" />
+      <div class="seg wEra" id="wEra"><button id="wEraAD" class="on">AD</button><button id="wEraBC">BC</button></div>
       <input type="number" id="wMonth" min="1" max="12" step="1" />
       <input type="number" id="wDay" min="1" max="31" step="1" />
     </div>
@@ -1074,6 +1087,7 @@ const I18N = {
     wHint: 'Opens at 21:00 local mean time, facing south. Drag to look around, wheel to zoom, click a star to identify it.',
     bcHint: '(BC)',
     wTonight: 'Tonight', wYaodian: 'Yaodian', wHan: 'Han', wGuest: '1054',
+    wToday: 'Today',
     wTonightTip: 'Tonight', wYaodianTip: 'Yaodian, 2000 BC (spring-equinox dusk)',
     wHanTip: 'Han dynasty (AD 100 summer solstice)', wGuestTip: '1054 guest star (Crab supernova)',
     lblYear: 'Year',
@@ -1161,6 +1175,7 @@ const I18N = {
     wHint: '\u8FDB\u5165\u540E\u4E3A\u5F53\u5730\u5E73\u592A\u9633\u65F6 21:00\u3001\u9762\u5411\u5357\u65B9\u3002\u62D6\u52A8\u73AF\u89C6\uFF0C\u6EDA\u8F6E\u7F29\u653E\uFF0C\u70B9\u51FB\u661F\u661F\u8BC6\u522B\u3002',
     bcHint: '\uFF08\u516C\u5143\u524D\uFF09',
     wTonight: '\u4ECA\u665A', wYaodian: '\u5C27\u5178', wHan: '\u6C49\u4EE3', wGuest: '1054',
+    wToday: '\u4ECA\u5929',
     wTonightTip: '\u4ECA\u665A', wYaodianTip: '\u5C27\u5178 \u516C\u5143\u524D2000\uFF08\u6625\u5206\u660F\uFF09',
     wHanTip: '\u6C49\u4EE3\uFF08\u516C\u5143100\u5E74\u590F\u81F3\uFF09', wGuestTip: '1054 \u5929\u5173\u5BA2\u661F',
     lblYear: '\u5E74\u4EFD',
@@ -1247,6 +1262,7 @@ function applyLang() {
   set('wHint', d.wHint);
   set('wLblDate', d.lblDate);
   set('wLblPlace', d.lblPlace);
+  set('wLblToday', d.wToday);
   set('pLblTonight', d.wTonight);
   set('pLblYaodian', d.wYaodian);
   set('pLblHan', d.wHan);
@@ -3089,28 +3105,59 @@ $('pTonight').addEventListener('click', () => {
 // (any pointer, key or focus inside the card cancels the countdown); a
 // hidden tab pauses it. ----
 const WELCOME_MS = 10000;
-function updateWelcomeYear(y) {
-  $('wYearNum').textContent = y > 0 ? String(y) : String(1 - y);
-  $('wYearHint').textContent = y > 0 ? '' : t('bcHint');
+// The year controls speak the calendar's own language: a positive number
+// plus an AD/BC switch (the astronomical numbering stays in the panel).
+// Internally 1 BC = 0, N BC = 1 - N, as everywhere else.
+function setWelcomeYear(astr) {
+  astr = Math.max(-3000, Math.min(3000, Math.round(astr)));
+  const bc = astr <= 0;
+  $('wYearIn').value = bc ? 1 - astr : astr;
+  $('wEraAD').classList.toggle('on', !bc);
+  $('wEraBC').classList.toggle('on', bc);
+  $('wYear').value = astr;
+  $('wYearNum').textContent = bc ? 1 - astr : astr;
+  $('wYearHint').textContent = bc ? t('bcHint') : '';
+}
+function getWelcomeYear() {
+  const v = Math.max(1, Math.round(Number($('wYearIn').value) || 1));
+  return $('wEraBC').classList.contains('on') ? 1 - v : v;
 }
 const welcomeInit = Astro.jdToCalendar(real.jd + localOffsetDays(), real.cal);
-$('wYear').value = welcomeInit.year;
-$('wYearIn').value = welcomeInit.year;
 $('wMonth').value = welcomeInit.month;
 $('wDay').value = welcomeInit.day;
-updateWelcomeYear(welcomeInit.year);
-$('wYear').addEventListener('input', (e) => { $('wYearIn').value = e.target.value; updateWelcomeYear(Number(e.target.value)); });
-$('wYearIn').addEventListener('change', (e) => {
-  const y = Math.max(-3000, Math.min(3000, Number(e.target.value) || 0));
-  $('wYear').value = y; $('wYearIn').value = y; updateWelcomeYear(y);
+setWelcomeYear(welcomeInit.year);
+$('wYear').addEventListener('input', (e) => setWelcomeYear(Number(e.target.value)));
+$('wYearIn').addEventListener('change', () => setWelcomeYear(getWelcomeYear()));
+for (const [id, era] of [['wEraAD', false], ['wEraBC', true]]) {
+  $(id).addEventListener('click', () => { $('wEraBC').classList.toggle('on', era); $('wEraAD').classList.toggle('on', !era); setWelcomeYear(getWelcomeYear()); });
+}
+$('wToday').addEventListener('click', () => {
+  const now = Astro.jdToCalendar(Astro.calendarToJD(utcNowFields()) + localOffsetDays(), real.cal);
+  $('wMonth').value = now.month;
+  $('wDay').value = now.day;
+  setWelcomeYear(now.year);
 });
+// Step buttons nudge the year; holding one repeats (and suppresses the click).
+for (const [id, delta] of [['wM100', -100], ['wM1', -1], ['wP1', 1], ['wP100', 100]]) {
+  const btn = $(id);
+  let holdT = 0, holdI = 0, held = false;
+  const step = () => setWelcomeYear(getWelcomeYear() + delta);
+  const stop = () => { clearTimeout(holdT); clearInterval(holdI); };
+  btn.addEventListener('pointerdown', () => {
+    held = false;
+    holdT = setTimeout(() => { held = true; step(); holdI = setInterval(step, 90); }, 420);
+  });
+  btn.addEventListener('pointerup', stop);
+  btn.addEventListener('pointerleave', stop);
+  btn.addEventListener('click', () => { if (held) { held = false; return; } step(); });
+}
 $('wCity').addEventListener('change', (e) => {
   $('rCity').value = e.target.value;
   $('rCity').dispatchEvent(new Event('change'));
 });
 function hideWelcome() { $('welcome').classList.add('hidden'); }
 $('wStart').addEventListener('click', () => {
-  const year = Number($('wYearIn').value), month = Number($('wMonth').value) || 1, day = Number($('wDay').value) || 1;
+  const year = getWelcomeYear(), month = Number($('wMonth').value) || 1, day = Number($('wDay').value) || 1;
   // An unchanged date needs no jump: the sky behind is already tonight.
   const changed = year !== welcomeInit.year || month !== welcomeInit.month || day !== welcomeInit.day;
   if (changed && Number.isFinite(year)) {
