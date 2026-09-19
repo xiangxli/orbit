@@ -175,7 +175,7 @@
   #toolbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 5px; flex: none; }
 
   /* Welcome card: pre-filled with the sky already running behind it; closes
-     itself after 5 s unless the user starts interacting with it. */
+     itself after 10 s unless the user starts interacting with it. */
   #welcome { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); z-index: 5; }
   #welcome.hidden { display: none; }
   #welcome .card { width: min(440px, calc(100vw - 32px)); padding: 22px 24px 26px; position: relative; }
@@ -3085,10 +3085,10 @@ $('pTonight').addEventListener('click', () => {
 });
 
 // ---- Welcome card: pre-filled with the sky already running behind it.
-// It closes itself after 5 s unless the user starts interacting with it
+// It closes itself after 10 s unless the user starts interacting with it
 // (any pointer, key or focus inside the card cancels the countdown); a
 // hidden tab pauses it. ----
-const WELCOME_MS = 5000;
+const WELCOME_MS = 10000;
 function updateWelcomeYear(y) {
   $('wYearNum').textContent = y > 0 ? String(y) : String(1 - y);
   $('wYearHint').textContent = y > 0 ? '' : t('bcHint');
