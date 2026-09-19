@@ -195,6 +195,15 @@
   #starInfo b { font-size: 16px; color: var(--accent); display: block; margin-bottom: 2px; }
   #starInfo .dim { color: var(--muted); }
 
+  /* Cardinal direction hint: floats at the screen edge toward the closest
+     cardinal point when its horizon label is off-screen (e.g. looking up). */
+  #dirHint {
+    position: fixed; left: 0; top: 0; transform: translate(-50%, -50%);
+    display: none; pointer-events: none; user-select: none; white-space: nowrap;
+    font-size: 15px; font-weight: 600; letter-spacing: 0.08em;
+    color: #8ef0c4; text-shadow: 0 0 8px rgba(120, 240, 190, 0.85), 0 0 3px rgba(0, 0, 0, 0.7);
+  }
+
   @media (max-width: 640px) {
     #hud { top: auto; bottom: 64px; left: 8px; right: 8px; width: auto; }
     #hud.collapsed { width: auto; right: auto; }
@@ -378,6 +387,7 @@
 </div>
 
 <div id="starInfo" class="glass"></div>
+<div id="dirHint"></div>
 
 <!-- Classic scripts (not modules) so the page still works from file:// -->
 <!-- ?v= busts browser caches when the local files change; bump it with them -->
@@ -1340,6 +1350,7 @@ const _obsViewAxis = new THREE.Vector3();
 // completes exactly one circle around Polaris per orbit (per year).
 function updateObserverView() {
   if (real.on) { updateObserverViewReal(); return; }
+  dirHint.style.display = 'none';   // the cardinal hint belongs to the real sky
   const latRad = Number($('lat').value) * Math.PI / 180;
   observer.position.set(
     Math.cos(latRad) * OBSERVER_RADIUS,
@@ -1389,6 +1400,7 @@ function setObserverMode(on) {
     earthPivot.visible = true;
     renderer.setClearColor(0x000000);
     hideStarInfo();
+    dirHint.style.display = 'none';
     camera.position.copy(earthPivot.position).add(savedCamOffset);
     controls.target.copy(earthPivot.position).add(savedTargetOffset);
     camera.up.copy(savedUp);
@@ -2169,7 +2181,9 @@ const horizonRing = new THREE.LineLoop(
 );
 horizonGroup.add(horizonRing);
 const cardinalLabels = [];
-for (const [text, x, y] of [['N', 0, 1], ['E', 1, 0], ['S', 0, -1], ['W', -1, 0]]) {
+// [label, local X (east), local Y (north)] in horizon-frame order N, E, S, W
+const CARDINALS = [['N 北', 0, 1], ['E 东', 1, 0], ['S 南', 0, -1], ['W 西', -1, 0]];
+for (const [text, x, y] of CARDINALS) {
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(text, '#8ef0c4'), transparent: true, depthWrite: false }));
   sp.position.set(x * R_HORIZON * 0.97, y * R_HORIZON * 0.97, R_HORIZON * 0.06);
   horizonGroup.add(sp);
@@ -2465,10 +2479,74 @@ function updateObserverViewReal() {
   earthPivot.visible = false;
   const sh = sceneDirToAzAlt(_sunDir);
   updateHorizonGlow(sh.az, sh.alt);
+  updateDirHint();
   const vs = `${real.az.toFixed(0)}° / ${real.alt.toFixed(0)}° / ${camera.fov.toFixed(0)}°`;
   if (vs !== lastViewStr) { lastViewStr = vs; $('viewVal').textContent = vs; }
 }
 let lastViewStr = '';
+
+// Cardinal direction hint: the horizon labels sit at altitude ~0, so looking
+// up (the default view) puts the closest one off-screen. When that happens,
+// float its label at the screen edge along the direction it lies (the ray
+// from the view centre through the point); when the real horizon label is
+// visible on screen, hide the hint.
+const dirHint = $('dirHint');
+const _dhV = new THREE.Vector3();
+const _dhC = new THREE.Vector3();
+function updateDirHint() {
+  if (!real.on || !observerMode) { dirHint.style.display = 'none'; return; }
+  // Closest cardinal to the view azimuth (N=0, E=90, S=180, W=270).
+  let best = 0, bestD = 1e9;
+  for (let i = 0; i < CARDINALS.length; i++) {
+    const d = Math.abs(((real.az - i * 90 + 540) % 360) - 180);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  // World position of that horizon label, straight from the observer's ENU
+  // basis (the sprites' matrixWorld is only refreshed at render time).
+  const [, cx, cy] = CARDINALS[best];
+  _dhV.copy(_obsCamPos)
+    .addScaledVector(_east, cx * R_HORIZON * 0.97)
+    .addScaledVector(_north, cy * R_HORIZON * 0.97)
+    .addScaledVector(_obsUp, R_HORIZON * 0.06);
+  camera.updateMatrixWorld();
+  _dhC.copy(_dhV).applyMatrix4(camera.matrixWorldInverse);   // camera space
+  const inFront = _dhC.z < 0;
+  const ndc = _dhV.project(camera);
+  if (inFront && Math.abs(ndc.x) < 0.97 && Math.abs(ndc.y) < 0.97) {
+    dirHint.style.display = 'none';   // the horizon label itself is on screen
+    return;
+  }
+  let dx = _dhC.x, dy = _dhC.y;
+  if (!inFront) { dx = -dx; dy = -dy; }   // behind the camera: mirror the direction
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) { dirHint.style.display = 'none'; return; }   // looking straight at it
+  dx /= len; dy /= len;
+  const m = 30;   // keep the label fully on screen
+  const hw = innerWidth / 2 - m, hh = innerHeight / 2 - m;
+  const t = Math.min(dx !== 0 ? hw / Math.abs(dx) : 1e9, dy !== 0 ? hh / Math.abs(dy) : 1e9);
+  dirHint.textContent = CARDINALS[best][0];
+  dirHint.style.display = 'block';
+  let px = innerWidth / 2 + dx * t;
+  let py = innerHeight / 2 - dy * t;
+  const halfW = dirHint.offsetWidth / 2 + 6;
+  const halfH = dirHint.offsetHeight / 2 + 4;
+  // Keep clear of the panel, the bottom toolbar and the info card (two passes:
+  // one push can land on another element).
+  for (let pass = 0; pass < 2; pass++) {
+    for (const id of ['hud', 'toolbar', 'starInfo']) {
+      const el = $(id);
+      if (!el || getComputedStyle(el).display === 'none') continue;
+      const r = el.getBoundingClientRect();
+      if (px + halfW < r.left || px - halfW > r.right || py + halfH < r.top || py - halfH > r.bottom) continue;
+      if (id === 'hud') px = r.right + halfW + 8;   // panel sits on the left
+      else py = r.top - halfH - 8;                  // toolbar / info card: float above
+    }
+  }
+  px = Math.min(innerWidth - halfW - 4, Math.max(halfW + 4, px));
+  py = Math.min(innerHeight - halfH - 4, Math.max(halfH + 4, py));
+  dirHint.style.left = px.toFixed(1) + 'px';
+  dirHint.style.top = py.toFixed(1) + 'px';
+}
 
 // Azimuth/altitude of a direction given in the scene frame, for the current
 // observer (uses the ENU basis computed by updateObserverViewReal).
@@ -2723,6 +2801,7 @@ function setRealMode(on) {
     else { obsFov = REAL_FOV; real.az = 180; real.alt = 40; }
   } else {
     hideStarInfo();
+    dirHint.style.display = 'none';
     horizonGroup.visible = false;
     earthPivot.visible = true;
     renderer.setClearColor(0x000000);
