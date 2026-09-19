@@ -3196,21 +3196,8 @@ function welcomeTick(now) {
 }
 requestAnimationFrame(welcomeTick);
 
-// ---- Location: one silent geolocation attempt ----
-// Works when served (https); denied, unavailable or file:// keeps the default
-// Xi'an without asking anything. A shared link with ?lat= wins over both.
-if (!new URLSearchParams(location.search).has('lat') && navigator.geolocation && window.isSecureContext) {
-  navigator.geolocation.getCurrentPosition((pos) => {
-    real.lat = pos.coords.latitude;
-    real.lon = ((pos.coords.longitude + 540) % 360) - 180;
-    $('rLat').value = real.lat.toFixed(2);
-    $('rLon').value = real.lon.toFixed(2);
-    const city = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.5 && Math.abs(c[4] - real.lon) < 0.5);
-    $('rCity').value = city ? city[0] : '';
-    $('wCity').value = city ? city[0] : '';
-    if (real.on) { jdToFields(real.jd); applyRealState(); requestRender(); }
-  }, () => {}, { timeout: 1500, maximumAge: 600000 });
-}
+// No location permission prompts: the place starts at the default Xi'an and
+// is changed in the panel (or by a shared ?lat=&lon= link).
 $('conLines').addEventListener('change', (e) => { conLines.visible = e.target.checked; requestRender(); });
 $('conNames').addEventListener('change', (e) => { conLabels.visible = e.target.checked; requestRender(); });
 
