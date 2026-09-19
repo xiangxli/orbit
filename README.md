@@ -16,12 +16,18 @@ see that sky, with the Chinese constellations (三垣二十八宿). Open `index.
 
 ### Real sky (date & place)
 
-The page opens with a card to choose an era and a place; **Start** enters the real sky at
-21:00 local mean time facing south (**Demo mode** goes to the orbit demonstration; the
-header switch toggles between the two). The panel has collapsible sections (time, place,
-sky events, display, demo) and a bottom toolbar with play/pause, rate presets (real time,
-1 min/s, wheeling sky, precession), Now and Tonight. The demo's free-running clock is
-replaced by a real calendar clock (UT Julian Day) that drives everything:
+The page opens straight into tonight's sky (facing south; 21:00 if it is still daylight),
+with a small pre-filled card over it: choose another era or place, or just ignore it — the
+card fades away after 10 s (a thin bar shows the countdown; it pauses while the tab is
+hidden, and touching anything on the card cancels it). The place defaults to Xi'an — no
+permission prompts — and is changeable in the panel. Era presets also live in the panel's
+Time section
+(**Tonight**, the **Yaodian** sky of 2000 BC, the **Han** dynasty, the **1054 guest star**),
+and the header switch goes to the orbit demonstration. The panel has
+collapsible sections (time, place, sky events, display, demo) and a bottom toolbar with
+play/pause, rate presets (real time, 1 min/s, wheeling sky, precession), Now and Tonight.
+The demo's free-running clock is replaced by a real calendar clock (UT Julian Day) that
+drives everything:
 
 - **Date/time**: year (astronomical numbering: 0 = 1 BC, −1 = 2 BC), month, day,
   hour, minute. Julian calendar before 1582-10-15, Gregorian after (or force either).
