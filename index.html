@@ -39,10 +39,10 @@
 
   /* Control panel */
   #hud { position: absolute; top: 16px; left: 16px; width: 304px; padding: 12px 14px; user-select: none; touch-action: manipulation; }
-  #hudHeader { display: flex; align-items: center; gap: 8px; }
+  #hudHeader { display: flex; align-items: center; gap: 6px; }
   #hud h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seg { display: flex; border: 1px solid var(--accent-line); border-radius: 8px; overflow: hidden; flex: none; }
-  .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; }
+  .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; white-space: nowrap; }
   .seg button.on { background: var(--accent-soft); color: var(--text); }
   /* The three language switches live in different containers (header, welcome
      card, panel row), whose own button rules would otherwise flatten the
@@ -57,9 +57,14 @@
   #langSeg button + button, #wLangSeg button + button, #dispLangSeg button + button {
     border-left: 1px solid var(--accent-line);
   }
+  /* On the card the same fill would compete with the Start button, so the
+     selection there is a touch lighter — the divider carries the structure. */
+  #wLangSeg button.on { background: rgba(143, 200, 255, 0.24); font-weight: 500; box-shadow: none; }
   /* The language switch is always-visible chrome (header, and the welcome
-     card), so it needs to be a little tighter to fit next to the mode switch. */
+     card), so it needs to be a little tighter to fit next to the mode switch —
+     and the mode switch after it, which otherwise squeezes the title. */
   #langSeg button { padding: 4px 6px; }
+  #langSeg + .seg button { padding: 4px 8px; }
   #hudToggle {
     background: transparent; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 8px;
     width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -199,11 +204,16 @@
   #welcome .wYear { font-size: 44px; font-weight: 300; letter-spacing: 0.02em; text-align: center; font-variant-numeric: tabular-nums; margin: 2px 0 0; }
   #welcome .wYear small { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
   #welcome input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 10px; }
-  #welcome .row > span:first-child { min-width: 40px; }
+  #welcome .row > span:first-child { min-width: 36px; }
   #welcome .wActions { display: flex; gap: 8px; margin-top: 14px; }
-  #welcome button { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
+  /* Big tappable buttons (Start / Demo mode) — but NOT the small segmented
+     switches inside a row: the AD/BC and language toggles would otherwise
+     inherit flex:1, 13px text, 9px padding and a 10px radius, which fights the
+     segment's own overflow clipping and reads far too heavy. */
+  #welcome button:not(.seg button) { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
   #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
-  #welcome button:hover { background: var(--accent-soft); }
+  #welcome button:not(.seg button):hover { background: var(--accent-soft); }
+  #welcome .seg button { font-size: 11px; padding: 4px 10px; border-radius: 0; flex: none; }
   #welcome .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   #welcome .wTimer { position: absolute; left: 16px; right: 16px; bottom: 9px; height: 2px; border-radius: 1px; background: rgba(160, 190, 240, 0.12); overflow: hidden; transition: opacity 0.4s; }
   #welcome .wTimer i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; }
@@ -250,7 +260,7 @@
     <div class="row"><span id="wLblLang">Language</span>
       <div class="seg" id="wLangSeg">
         <button data-lang="zh">中文</button>
-        <button data-lang="en" class="on">English</button>
+        <button data-lang="en" class="on">EN</button>
       </div>
     </div>
     <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
@@ -285,7 +295,7 @@
     <h1 id="hudTitle">REAL SKY</h1>
     <div class="seg" id="langSeg">
       <button data-lang="zh">中文</button>
-      <button data-lang="en" class="on">English</button>
+      <button data-lang="en" class="on">EN</button>
     </div>
     <div class="seg"><button id="modeReal">Real sky</button><button id="modeDemo" class="on">Demo</button></div>
     <button id="hudToggle" aria-label="Toggle panel" title="Show/hide controls">
@@ -376,7 +386,7 @@
       <div class="row"><span id="lblLang">Language</span>
         <div class="seg" id="dispLangSeg">
           <button data-lang="zh">中文</button>
-          <button data-lang="en" class="on">English</button>
+          <button data-lang="en" class="on">EN</button>
         </div>
       </div>
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
@@ -1371,10 +1381,14 @@ function applyLang() {
   syncLangButtons();
 }
 // Mark the active language on every switch. Called from applyLang so the three
-// placements can never disagree, whichever one the change came from.
+// placements can never disagree, whichever one the change came from. The visible
+// labels are terse ("中文" / "EN", the usual language-switch convention), so give
+// each button a full accessible name built from the current UI language.
 function syncLangButtons() {
+  const d = I18N[lang];
   for (const btn of document.querySelectorAll('#langSeg button, #wLangSeg button, #dispLangSeg button')) {
     btn.classList.toggle('on', btn.dataset.lang === lang);
+    btn.setAttribute('aria-label', `${d.lblLang}: ${btn.dataset.lang === 'zh' ? '中文（简体）' : 'English'}`);
   }
 }
 // Text that some widget renders on demand rather than holding in the DOM, so a

@@ -20,7 +20,7 @@
 | 架构 | `astro.js` 纯函数做全部天文计算，输出 J2000 赤道系单位向量；`index.html` 只负责把向量映射进场景和 UI |
 | 部署 | 仍支持直接打开 index.html。本地文件一律用经典 `<script src>`（file:// 下 Chrome 拦 ES module 和 fetch，不拦经典脚本）；银河贴图内联为 base64（file:// 下 `<img>` 会污染 WebGL 纹理）；脚本 `?v=` 防缓存，改了就升号 |
 | 测试 | `npm test`（即 `node --test test/*.test.js`）零依赖，25 项：Meeus 书中算例 + 真实天象（2024 日食、2020 木土大合、2022/2025 月掩火星、尧典中星） |
-| 语言 | 仅英文与简体中文（`zh-Hant` 等一律并入 zh）。**不做推断**：`navigator.language` 只作首次访问的默认值，用户一旦选择就写入 `localStorage['orbit.lang']` 并优先于浏览器。开关放三处、永远同步（`syncLangButtons()` 由 `applyLang()` 调用）：欢迎卡片（首次访问最需要，且点它即取消卡片倒计时）、面板标题栏（与"真实星空/演示"并排，常驻可见）、面板"显示"区首行；按钮统一带 `data-lang`，一个委托监听器驱动全部。分享链接带 `?lang=zh`（英文为默认故省略），打开链接即用链接的语言，但**不写入** localStorage，因此不会改掉收件人自己的选择。星官名两种语言下都保持中文（中国星官体系本身即内容） |
+| 语言 | 仅英文与简体中文（`zh-Hant` 等一律并入 zh）。**不做推断**：`navigator.language` 只作首次访问的默认值，用户一旦选择就写入 `localStorage['orbit.lang']` 并优先于浏览器。开关放三处、永远同步（`syncLangButtons()` 由 `applyLang()` 调用）：欢迎卡片（首次访问最需要，且点它即取消卡片倒计时）、面板标题栏（与"真实星空/演示"并排，常驻可见）、面板"显示"区首行；按钮统一带 `data-lang`，一个委托监听器驱动全部，可见标签用惯例的"中文 / EN"（简短且两边对称），完整名称放进 `aria-label`。分享链接带 `?lang=zh`（英文为默认故省略），打开链接即用链接的语言，但**不写入** localStorage，因此不会改掉收件人自己的选择。星官名两种语言下都保持中文（中国星官体系本身即内容） |
 | 切换时要刷新的东西 | 星名/行星名/"月"的文字烘进 canvas 贴图，故 `setLang()` 必须重建三类精灵（`buildStarLabels` / `buildPlanetLabels` / `buildMoonLabel`，旧的 `dispose()` 掉）、重建城市与"前往"下拉、刷新自绘下拉按钮文字；另有按需渲染的文字须显式重画（`refreshLangText()`：播放/暂停按钮、倍率读数）——这些**不能**放进 `applyLang()`，因为 `applyLang()` 在模块顶部也会跑，那时 `paused`、`setRate` 仍在 TDZ 内。`refreshLangText()` 遇到岁差预设时要走 `setPrecessionRate()`，否则 `setRate()` 会把 `yearRate` 清零、静默关掉该模式 |
 
 ## 现状（按功能）
