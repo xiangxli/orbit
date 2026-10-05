@@ -1,0 +1,9 @@
+{
+  "name": "orbit",
+  "version": "0.0.0",
+  "private": true,
+  "description": "True-scale Earth-Sun demo plus a real-sky (date and place) mode, in one HTML file",
+  "scripts": {
+    "test": "node --test test/astro.test.js test/sky.test.js"
+  }
+}

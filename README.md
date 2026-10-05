@@ -12,7 +12,7 @@ see that sky, with the Chinese constellations (三垣二十八宿). Open `index.
 - Observer view: stand on the Earth's surface at any latitude, watch the Big Dipper wheel around Polaris
 - Annual view: fixed local time — only the ~1°/day orbital drift remains
 - Big Dipper (7 real stars + Alcor), the Taoist nine-star Dipper (洞明/隐元), Polaris, starfield
-- i18n (device-language detection, English default), collapsible HUD
+- i18n (English / Simplified Chinese), collapsible HUD
 
 ### Real sky (date & place)
 
@@ -59,9 +59,17 @@ drives everything:
   that warms up toward the Sun at dusk.
 - **Names and lines**: bright stars carry their names (to V 1.5 at wide fields, V 3 when
   zoomed in); toggles for the meridian, the celestial equator of date and the ecliptic.
-- **Share**: in real-sky mode the address bar tracks time, place and view
-  (`?t=<JD>&lat&lon&az&alt&fov`); "Share link" copies it, and such a link opens straight
-  into that sky.
+- **Language**: English or Simplified Chinese, switched with the 中文 / EN control in the
+  panel header — always visible, in both modes — or on the welcome card, which a
+  first-time visitor may need before they can read anything else (picking one there also
+  cancels the card's 10 s countdown). The two always agree. The first visit follows the
+  browser's language; an explicit choice is remembered and wins from then on.
+  A `?lang=zh` link opens in the language it was shared in without overwriting the
+  recipient's own choice. Star and planet names come from the catalog in either language;
+  the xingguan names stay Chinese in both, since the Chinese sky is the subject.
+- **Share**: in real-sky mode the address bar tracks time, place, view and language
+  (`?t=<JD>&lat&lon&az&alt&fov[&lang=zh]`); "Share link" copies it, and such a link opens
+  straight into that sky, in the language it was shared in.
 - **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
   only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
   aberration or refraction (all < 1′ except refraction near the horizon).
@@ -80,7 +88,7 @@ The demo's speed sliders are disabled in real-sky mode (they would break the cal
 | `index.html` | The whole app (Three.js scene, HUD, real-sky mode) |
 | `astro.js` | Pure astronomy: calendars/JD, ΔT, sidereal time, obliquity, precession, Sun, Moon, coordinate transforms. Classic script (browser) + CommonJS (node) |
 | `stars.js`, `constellations.js`, `milkyway.js` | Generated data (see `tools/build_data.py`); the Milky Way is a base64 JPEG so WebGL can use it from `file://` |
-| `test/` | `node --test test/` — Meeus worked examples and historical sanity checks |
+| `test/` | `npm test` (or `node --test test/*.test.js`) — Meeus worked examples and historical sanity checks |
 | `PLAN.md` | Design decisions and frame conventions for the real-sky mode. Read it before touching the coordinate code |
 
 `astro.js` and the data files are classic scripts, not ES modules, so the page still works

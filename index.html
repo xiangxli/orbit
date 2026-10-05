@@ -39,11 +39,32 @@
 
   /* Control panel */
   #hud { position: absolute; top: 16px; left: 16px; width: 304px; padding: 12px 14px; user-select: none; touch-action: manipulation; }
-  #hudHeader { display: flex; align-items: center; gap: 8px; }
+  #hudHeader { display: flex; align-items: center; gap: 6px; }
   #hud h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seg { display: flex; border: 1px solid var(--accent-line); border-radius: 8px; overflow: hidden; flex: none; }
-  .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; }
+  /* 4px 6px is the shared metric for every segmented switch in the app, so they
+     all come out exactly 24px tall; the header's mode switch opts into more. */
+  .seg button { font-size: 11px; padding: 4px 6px; background: transparent; color: var(--muted); border: 0; cursor: pointer; white-space: nowrap; }
   .seg button.on { background: var(--accent-soft); color: var(--text); }
+  /* The three language switches live in different containers (header, welcome
+     card, panel row), whose own button rules would otherwise flatten the
+     selection into an indistinct tint. Give the chosen language a fill and an
+     inner divider edge so it is unmistakable on every background. */
+  #langSeg button.on, #wLangSeg button.on {
+    background: rgba(143, 200, 255, 0.28);
+    color: #f2f7ff;
+    font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+  #langSeg button + button, #wLangSeg button + button {
+    border-left: 1px solid var(--accent-line);
+  }
+  /* On the card the same fill would compete with the Start button, so the
+     selection there is a touch lighter — the divider carries the structure. */
+  #wLangSeg button.on { background: rgba(143, 200, 255, 0.24); font-weight: 500; box-shadow: none; }
+  /* The switch that follows the language one in the header is the mode switch;
+     it can afford slightly more padding, and the title needs the room. */
+  #langSeg + .seg button { padding: 4px 8px; }
   #hudToggle {
     background: transparent; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 8px;
     width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -77,12 +98,15 @@
   .row input.wide { width: 68px; }
   .row select.wide, #hud select.wide { width: auto; flex: 1; min-width: 0; }
   .row input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
-  .row button, #hud .btn {
+  /* Row buttons fill the row — except the buttons inside a segmented switch
+     (the language and AD/BC toggles), which must keep the segment's own size
+     and square corners instead of stretching and rounding. */
+  .row button:not(.seg button), #hud .btn {
     font-size: 11px; padding: 4px 6px; flex: 1; cursor: pointer;
     background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
     transition: background 0.15s, border-color 0.15s;
   }
-  .row button:hover, #hud .btn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+  .row button:not(.seg button):hover, #hud .btn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
   #hud .btn { width: 100%; margin-top: 6px; padding: 6px 0; font-size: 12px; }
   #hud .btn.active { background: var(--accent-soft); border-color: var(--accent); }
   #hud .stat { font-size: 11px; color: var(--muted); margin-top: 6px; }
@@ -183,11 +207,18 @@
   #welcome .wYear { font-size: 44px; font-weight: 300; letter-spacing: 0.02em; text-align: center; font-variant-numeric: tabular-nums; margin: 2px 0 0; }
   #welcome .wYear small { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
   #welcome input[type="range"] { width: 100%; accent-color: var(--accent); margin: 6px 0 10px; }
-  #welcome .row > span:first-child { min-width: 40px; }
+  #welcome .row > span:first-child { min-width: 36px; }
   #welcome .wActions { display: flex; gap: 8px; margin-top: 14px; }
-  #welcome button { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
+  /* Big tappable buttons (Start / Demo mode) — but NOT the small segmented
+     switches inside a row: the AD/BC and language toggles would otherwise
+     inherit flex:1, 13px text, 9px padding and a 10px radius, which fights the
+     segment's own overflow clipping and reads far too heavy. */
+  #welcome button:not(.seg button) { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
   #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
-  #welcome button:hover { background: var(--accent-soft); }
+  #welcome button:not(.seg button):hover { background: var(--accent-soft); }
+  /* Same metrics as every other segment (4px 6px => 24px tall), so the language
+     switch and the AD/BC switch beside it line up exactly. */
+  #welcome .seg button { font-size: 11px; padding: 4px 6px; border-radius: 0; flex: none; }
   #welcome .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   #welcome .wTimer { position: absolute; left: 16px; right: 16px; bottom: 9px; height: 2px; border-radius: 1px; background: rgba(160, 190, 240, 0.12); overflow: hidden; transition: opacity 0.4s; }
   #welcome .wTimer i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; }
@@ -228,6 +259,15 @@
 <div id="welcome">
   <div class="card glass">
     <h2 id="wTitle">Choose an era and a place</h2>
+    <!-- Language belongs on this card: it is the one setting a first-time
+         visitor may need before they can read anything else. Picking one here
+         is an interaction with the card, which also cancels the countdown. -->
+    <div class="row"><span id="wLblLang">Language</span>
+      <div class="seg" id="wLangSeg">
+        <button data-lang="zh">中文</button>
+        <button data-lang="en" class="on">EN</button>
+      </div>
+    </div>
     <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
     <input type="range" id="wYear" min="-3000" max="3000" step="1" value="2026" />
     <div class="row wSteps">
@@ -258,6 +298,10 @@
 <div id="hud" class="glass">
   <div id="hudHeader">
     <h1 id="hudTitle">REAL SKY</h1>
+    <div class="seg" id="langSeg">
+      <button data-lang="zh">中文</button>
+      <button data-lang="en" class="on">EN</button>
+    </div>
     <div class="seg"><button id="modeReal">Real sky</button><button id="modeDemo" class="on">Demo</button></div>
     <button id="hudToggle" aria-label="Toggle panel" title="Show/hide controls">
       <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -339,6 +383,8 @@
         <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
       </details>
     </div>
+    <!-- Closed by default, like the other sections: the language switch that
+         briefly justified opening this lives in the header and the card now. -->
     <details>
       <summary id="secDisplay">Display</summary>
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
@@ -1064,6 +1110,7 @@ const I18N = {
     lblLatLon: 'Lat / Lon',
     lblRate: 'Time rate',
     lblRateVal: 'Rate:',
+    wLblLang: 'Language',
     conLines: 'Xingguan lines (Chinese constellations)',
     conNames: 'Xingguan names',
     lblLst: 'Local sidereal time:',
@@ -1152,6 +1199,7 @@ const I18N = {
     lblLatLon: '\u7EAC\u5EA6 / \u7ECF\u5EA6',
     lblRate: '\u65F6\u95F4\u500D\u7387',
     lblRateVal: '\u500D\u7387\uFF1A',
+    wLblLang: '\u8BED\u8A00',
     conLines: '\u661F\u5B98\u8FDE\u7EBF\uFF08\u4E09\u57A3\u4E8C\u5341\u516B\u5BBF\uFF09',
     conNames: '\u661F\u5B98\u540D',
     lblLst: '\u5F53\u5730\u6052\u661F\u65F6\uFF1A',
@@ -1201,7 +1249,26 @@ function detectLang() {
   return raw.startsWith('zh') ? 'zh' : 'en';
 }
 
-let lang = detectLang();
+// Failure or absence must never decide the language, so anything that is not
+// exactly 'zh' resolves to English rather than to whatever happened to be there.
+function normLang(v) { return v === 'zh' ? 'zh' : 'en'; }
+
+// Language: English or Simplified Chinese only (zh-Hant and other Chinese
+// locales collapse to zh). navigator.language is only the first-visit default --
+// there is no inference about the user. An explicit choice wins over the browser
+// and is remembered; a ?lang= link is applied but does not overwrite the stored
+// choice, so opening a shared link never re-sets your language.
+function storedLang() {
+  try { const v = localStorage.getItem('orbit.lang'); return v === 'zh' || v === 'en' ? v : null; } catch { return null; }
+}
+function urlLang() {
+  try {
+    const v = new URLSearchParams(location.search).get('lang');
+    return v === 'zh' || v === 'en' ? v : null;
+  } catch { return null; }
+}
+
+let lang = normLang(storedLang() || detectLang());
 const t = (k) => I18N[lang][k] ?? I18N.en[k];
 
 function applyLang() {
@@ -1262,6 +1329,7 @@ function applyLang() {
   set('wHint', d.wHint);
   set('wLblDate', d.lblDate);
   set('wLblPlace', d.lblPlace);
+  set('wLblLang', d.wLblLang);
   set('wLblToday', d.wToday);
   set('pLblTonight', d.wTonight);
   set('pLblYaodian', d.wYaodian);
@@ -1305,6 +1373,30 @@ function applyLang() {
   set('lblRefEquator', d.lblRefEquator);
   set('lblRefEcliptic', d.lblRefEcliptic);
   set('tbShare', d.tbShare);
+  syncLangButtons();
+}
+// Mark the active language on every switch. Called from applyLang so the three
+// placements can never disagree, whichever one the change came from. The visible
+// labels are terse ("中文" / "EN", the usual language-switch convention), so give
+// each button a full accessible name built from the current UI language.
+function syncLangButtons() {
+  const d = I18N[lang];
+  for (const btn of document.querySelectorAll('#langSeg button, #wLangSeg button')) {
+    btn.classList.toggle('on', btn.dataset.lang === lang);
+    btn.setAttribute('aria-label', `${d.wLblLang}: ${btn.dataset.lang === 'zh' ? '中文（简体）' : 'English'}`);
+  }
+}
+// Text that some widget renders on demand rather than holding in the DOM, so a
+// language change has to ask it to re-render. Kept out of applyLang() because
+// applyLang also runs at the top of the module, where `paused`, `setRate` and
+// friends are still in their temporal dead zone.
+function refreshLangText() {
+  refreshPlayButton();
+  // Re-render the rate readout in the new language, but do not clobber the
+  // "Precession" preset: setRate() resets yearRate to 0, which would silently
+  // switch that mode off just because the language changed.
+  if (real.yearRate > 0) setPrecessionRate(real.yearRate);
+  else setRate(real.rate);
 }
 applyLang();
 
@@ -1928,12 +2020,27 @@ const planetHaloPts = makePlanetLayer(planetHaloMat);
 const planetGeo = planetPts.geometry;
 const planetHaloGeo = planetHaloPts.geometry;
 const planetLabels = [];
-for (const n of PLANET_LIST) {
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(planetName(n), '#eef4ff'), transparent: true, depthWrite: false, opacity: 0.95 }));
-  sp.userData.major = true;
-  planetLabels.push(sp);
-  skyGroup.add(sp);
+// Sprite labels carry their text in a canvas texture, so a language change has
+// to redraw them: dispose the old texture and build a fresh sprite. Order
+// follows PLANET_LIST (updatePlanets indexes planetLabels[k] the same way).
+function disposeLabel(sp) {
+  if (sp.parent) sp.parent.remove(sp);
+  if (sp.material.map) sp.material.map.dispose();
+  sp.material.dispose();
 }
+function buildPlanetLabels() {
+  for (const sp of planetLabels) disposeLabel(sp);
+  planetLabels.length = 0;
+  for (const n of PLANET_LIST) {
+    const text = planetName(n);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(text, '#eef4ff'), transparent: true, depthWrite: false, opacity: 0.95 }));
+    sp.userData.major = true;
+    sp.userData.text = text;   // kept for the automated language checks
+    planetLabels.push(sp);
+    skyGroup.add(sp);
+  }
+}
+buildPlanetLabels();
 const planetGroup = { visible: true };
 function setPlanetsVisible(on) {
   planetGroup.visible = on;
@@ -2079,24 +2186,42 @@ skyGroup.add(selMarker);
 
 // Bright star names: labels for named stars to V 3.0, shown by tiers of
 // magnitude depending on the field of view (see updateLabelScale). The text
-// sits to the lower right of the star (sprite anchor offset).
+// sits to the lower right of the star (sprite anchor offset). The name is baked
+// into a canvas texture, so a language change rebuilds the whole set; the
+// zh -> en fallback keeps the ~2,100 stars that only have a Chinese name.
 const starLabels = [];
-for (let i = 0; i < N_STARS; i++) {
-  const s = STARS.stars[i], hip = s[0];
-  if (s[3] > 3.0 || !hip) continue;
-  const name = lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip]);
-  if (!name) continue;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(name, '#b9cfee'), transparent: true, depthWrite: false, opacity: 0.85 }));
-  sp.center.set(-0.05, 1.15);
-  sp.userData.mag = s[3];
-  starLabels.push({ sp, i });
-  skyGroup.add(sp);
+let starEpochJd = null;   // set once buildStarPositions has run for an epoch
+function buildStarLabels() {
+  for (const { sp } of starLabels) disposeLabel(sp);
+  starLabels.length = 0;
+  for (let i = 0; i < N_STARS; i++) {
+    const s = STARS.stars[i], hip = s[0];
+    if (s[3] > 3.0 || !hip) continue;
+    const name = lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip]);
+    if (!name) continue;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(name, '#b9cfee'), transparent: true, depthWrite: false, opacity: 0.85 }));
+    sp.center.set(-0.05, 1.15);
+    sp.userData.mag = s[3];
+    sp.userData.text = name;   // kept for the automated language checks
+    starLabels.push({ sp, i });
+    skyGroup.add(sp);
+  }
+  // Positions are only known once buildStarPositions has run; before that the
+  // labels sit at the origin inside a hidden group, which is harmless.
+  if (starEpochJd !== null) {
+    placeStarLabels();
+    labelFov = -1;   // re-apply visibility tiers and scale for the new sprites
+  }
 }
+// Positions come from the star buffer, so labels never need a scene rebuild.
+function placeStarLabels() {
+  for (const { sp, i } of starLabels) sp.position.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).multiplyScalar(0.985);
+}
+buildStarLabels();
 let starNamesOn = true;
 
 // Star positions for an epoch: J2000 + proper motion. Rebuilt when the
 // simulated date drifts more than 5 years from the last build.
-let starEpochJd = null;
 function buildStarPositions(jdTT) {
   const years = (jdTT - Astro.J2000) / 365.25;
   for (let i = 0; i < N_STARS; i++) {
@@ -2121,8 +2246,8 @@ function buildStarPositions(jdTT) {
     haloPos[k * 3 + 2] = starPos[i * 3 + 2];
   });
   haloGeo.attributes.position.needsUpdate = true;
-  for (const { sp, i } of starLabels) sp.position.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).multiplyScalar(0.985);
   starEpochJd = jdTT;
+  placeStarLabels();
 }
 
 // ---- Horizon: ground, skyline, horizon glow, cardinal points ----
@@ -2319,9 +2444,20 @@ const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
 moonGlow.renderOrder = 3;
 moonGlow.visible = false;
 moonGroup.add(moonGlow);
-const moonLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(lang === 'zh' ? '月' : 'Moon', '#eef4ff'), transparent: true, depthWrite: false, depthTest: false, opacity: 0.95 }));
-moonLabel.visible = false;
-moonGroup.add(moonLabel);
+// The Moon's own label ("月" / "Moon") is a canvas texture too, so it needs the
+// same rebuild-on-language-change treatment as the star and planet labels.
+let moonLabel = null;
+let moonLabelStr = '';
+const moonLabelText = () => moonLabelStr;
+function buildMoonLabel() {
+  if (moonLabel) disposeLabel(moonLabel);
+  moonLabelStr = lang === 'zh' ? '月' : 'Moon';
+  moonLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(moonLabelStr, '#eef4ff'), transparent: true, depthWrite: false, depthTest: false, opacity: 0.95 }));
+  moonLabel.visible = false;
+  moonGroup.add(moonLabel);
+  labelFov = -1;   // rescale for the new sprite
+}
+buildMoonLabel();
 // Observer marker on the globe (seen in the free view of real-sky mode)
 const observerMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.012, 12, 12),
@@ -3035,6 +3171,44 @@ $('rLat').value = real.lat;
 $('rLon').value = real.lon;
 jdToFields(real.jd);
 
+// ---- Language switching ----
+// One entry point for every language change, whether it comes from the toggle,
+// a ?lang= link or start-up: set `lang`, re-apply the localized DOM text, then
+// rebuild the things that baked the language into a canvas texture at load —
+// the star, planet and Moon label sprites, plus the option lists (city names,
+// Go to) and the dropdown buttons that mirror them. `persist` is false only for
+// a URL-supplied language, which must not overwrite the stored choice.
+function setLang(next, persist = true) {
+  next = normLang(next);
+  lang = next;
+  if (persist) { try { localStorage.setItem('orbit.lang', lang); } catch {} }
+  applyLang();
+  buildStarLabels();
+  buildPlanetLabels();
+  buildMoonLabel();
+  setPlanetsVisible($('planets').checked);
+  buildCityList();
+  const match = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.01 && Math.abs(c[4] - real.lon) < 0.01);
+  $('rCity').value = match ? match[0] : '';
+  $('wCity').value = $('rCity').value;
+  buildGotoList();
+  if (typeof ddRefresh === 'function') for (const sel of document.querySelectorAll('select')) ddRefresh(sel);
+  hideStarInfo();
+  updateLabelScale();
+  refreshLangText();                         // play/pause and rate readouts
+  if (persist && lastUrl) writeUrlState();   // keep ?lang= in step with the toggle
+  requestRender();
+}
+// Two switches, one state: the HUD header (always visible) and the welcome card
+// (a first-time visitor may need a language before they can read anything else).
+// Buttons carry data-lang, so one listener drives them all.
+for (const seg of document.querySelectorAll('#langSeg, #wLangSeg')) {
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-lang]');
+    if (btn) setLang(btn.dataset.lang);
+  });
+}
+
 // Time rate: log slider, 1x .. 1e7x (about a year every 3 s)
 function fmtRate(r) {
   const x = r < 1000 ? r.toFixed(0) : r.toExponential(1);
@@ -3250,6 +3424,14 @@ function ddOpen(sel, btn) {
   const cur = ddMenu.querySelector('.dd-item.sel');
   if (cur) cur.scrollIntoView({ block: 'nearest' });
 }
+// Re-read a select's current option text onto its dropdown button. Needed
+// after a language change rewrites option labels (city names) — the button
+// caches nothing itself, but nothing fires a change event either.
+function ddRefresh(sel) {
+  const o = sel.options[sel.selectedIndex];
+  const btn = sel.nextElementSibling;
+  if (btn && btn.classList.contains('dd-btn')) btn.firstChild.textContent = o ? o.textContent : '';
+}
 function makeDropdown(sel) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -3258,10 +3440,7 @@ function makeDropdown(sel) {
   btn.appendChild(span);
   sel.insertAdjacentElement('afterend', btn);
   sel.classList.add('dd-native');
-  const refresh = () => {
-    const o = sel.options[sel.selectedIndex];
-    span.textContent = o ? o.textContent : '';
-  };
+  const refresh = () => ddRefresh(sel);
   refresh();
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3282,7 +3461,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') ddClose(); });
 addEventListener('resize', ddClose);
 $('hudBody').addEventListener('scroll', ddClose);
 
-// ---- URL state: ?t=<JD>&lat&lon&az&alt&fov[&basis][&cal] ----
+// ---- URL state: ?t=<JD>&lat&lon&az&alt&fov[&basis][&cal][&lang] ----
 // Written (throttled by the readout tick) while in real-sky mode; a link
 // with these parameters opens straight into that sky.
 let lastUrl = '';
@@ -3298,6 +3477,11 @@ function urlStateString() {
   }
   if (real.basis !== 'lmt') p.set('basis', real.basis);
   if (real.cal !== 'auto') p.set('cal', real.cal);
+  // Absolute, like the view state: the link states what the sky is, not what
+  // differs from the recipient's browser. Comparing against the browser locale
+  // instead would silently strip ?lang=en from a link handed to anyone whose
+  // browser happens to be English.
+  if (lang !== 'en') p.set('lang', lang);
   return '?' + p.toString();
 }
 function writeUrlState() {
@@ -3329,6 +3513,10 @@ function applyUrlState() {
   if (p.has('az')) real.az = Astro.norm360(Number(p.get('az')) || 0);
   if (p.has('alt')) real.alt = THREE.MathUtils.clamp(Number(p.get('alt')) || 0, -25, 89.9);
   if (p.has('fov')) obsFov = THREE.MathUtils.clamp(Number(p.get('fov')) || REAL_FOV, 8, OBSERVER_FOV);
+  // A shared link opens in the language it was shared in, but that is a
+  // property of the link, not a preference: persist:false keeps it out of
+  // localStorage, so it never re-sets the recipient's own choice.
+  if (urlLang()) setLang(urlLang(), false);
   requestRender();
   return true;
 }
@@ -3350,6 +3538,15 @@ $('tbShare').addEventListener('click', async () => {
 window.__orbit = {
   real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode,
   gotoTarget, pickStarAt, sunDir: _sunDir, poleDirScene, toScene, milkyWay,
+  setLang, getLang: () => lang,
+  langProbe: () => ({
+    lang,
+    moon: moonLabelText(),
+    planets: planetLabels.map((sp) => sp.userData.text),
+    starSample: starLabels.slice(0, 5).map(({ sp }) => sp.userData.text),
+    cityOptions: [...$('rCity').options].slice(0, 3).map((o) => o.textContent),
+    ddCity: $('rCity').nextElementSibling.firstChild.textContent,
+  }),
   // synchronous frame for automated checks (background tabs throttle rAF)
   renderNow() {
     if (real.on) applyRealState();
@@ -3529,6 +3726,11 @@ refreshDayOfYear();
 // BEFORE real mode starts, or writeUrlState would have already put a ?t= of
 // the current clock into the address bar.
 applyUrlState();
+// Language is applied last so nothing else can override it. It is already set
+// for startup (stored choice, else the browser default); this syncs the toggle
+// and the ?lang= state, and matters most when the URL had no ?t=, in which
+// case the block above never ran at all.
+setLang(lang, false);
 setRealMode(true);
 </script>
 
