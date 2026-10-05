@@ -44,6 +44,22 @@
   .seg { display: flex; border: 1px solid var(--accent-line); border-radius: 8px; overflow: hidden; flex: none; }
   .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; }
   .seg button.on { background: var(--accent-soft); color: var(--text); }
+  /* The three language switches live in different containers (header, welcome
+     card, panel row), whose own button rules would otherwise flatten the
+     selection into an indistinct tint. Give the chosen language a fill and an
+     inner divider edge so it is unmistakable on every background. */
+  #langSeg button.on, #wLangSeg button.on, #dispLangSeg button.on {
+    background: rgba(143, 200, 255, 0.28);
+    color: #f2f7ff;
+    font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+  #langSeg button + button, #wLangSeg button + button, #dispLangSeg button + button {
+    border-left: 1px solid var(--accent-line);
+  }
+  /* The language switch is always-visible chrome (header, and the welcome
+     card), so it needs to be a little tighter to fit next to the mode switch. */
+  #langSeg button { padding: 4px 6px; }
   #hudToggle {
     background: transparent; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 8px;
     width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -228,6 +244,15 @@
 <div id="welcome">
   <div class="card glass">
     <h2 id="wTitle">Choose an era and a place</h2>
+    <!-- Language belongs on this card: it is the one setting a first-time
+         visitor may need before they can read anything else. Picking one here
+         is an interaction with the card, which also cancels the countdown. -->
+    <div class="row"><span id="wLblLang">Language</span>
+      <div class="seg" id="wLangSeg">
+        <button data-lang="zh">中文</button>
+        <button data-lang="en" class="on">English</button>
+      </div>
+    </div>
     <div class="wYear"><span id="wYearNum">2026</span><small id="wYearHint"></small></div>
     <input type="range" id="wYear" min="-3000" max="3000" step="1" value="2026" />
     <div class="row wSteps">
@@ -258,6 +283,10 @@
 <div id="hud" class="glass">
   <div id="hudHeader">
     <h1 id="hudTitle">REAL SKY</h1>
+    <div class="seg" id="langSeg">
+      <button data-lang="zh">中文</button>
+      <button data-lang="en" class="on">English</button>
+    </div>
     <div class="seg"><button id="modeReal">Real sky</button><button id="modeDemo" class="on">Demo</button></div>
     <button id="hudToggle" aria-label="Toggle panel" title="Show/hide controls">
       <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -345,9 +374,9 @@
     <details open>
       <summary id="secDisplay">Display</summary>
       <div class="row"><span id="lblLang">Language</span>
-        <div class="seg" id="langSeg">
-          <button id="langZh">中文</button>
-          <button id="langEn" class="on">English</button>
+        <div class="seg" id="dispLangSeg">
+          <button data-lang="zh">中文</button>
+          <button data-lang="en" class="on">English</button>
         </div>
       </div>
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
@@ -1073,6 +1102,7 @@ const I18N = {
     lblLatLon: 'Lat / Lon',
     lblRate: 'Time rate',
     lblRateVal: 'Rate:',
+    wLblLang: 'Language',
     conLines: 'Xingguan lines (Chinese constellations)',
     conNames: 'Xingguan names',
     lblLst: 'Local sidereal time:',
@@ -1162,6 +1192,7 @@ const I18N = {
     lblLatLon: '\u7EAC\u5EA6 / \u7ECF\u5EA6',
     lblRate: '\u65F6\u95F4\u500D\u7387',
     lblRateVal: '\u500D\u7387\uFF1A',
+    wLblLang: '\u8BED\u8A00',
     conLines: '\u661F\u5B98\u8FDE\u7EBF\uFF08\u4E09\u57A3\u4E8C\u5341\u516B\u5BBF\uFF09',
     conNames: '\u661F\u5B98\u540D',
     lblLst: '\u5F53\u5730\u6052\u661F\u65F6\uFF1A',
@@ -1292,6 +1323,7 @@ function applyLang() {
   set('wHint', d.wHint);
   set('wLblDate', d.lblDate);
   set('wLblPlace', d.lblPlace);
+  set('wLblLang', d.wLblLang);
   set('wLblToday', d.wToday);
   set('pLblTonight', d.wTonight);
   set('pLblYaodian', d.wYaodian);
@@ -1336,6 +1368,26 @@ function applyLang() {
   set('lblRefEquator', d.lblRefEquator);
   set('lblRefEcliptic', d.lblRefEcliptic);
   set('tbShare', d.tbShare);
+  syncLangButtons();
+}
+// Mark the active language on every switch. Called from applyLang so the three
+// placements can never disagree, whichever one the change came from.
+function syncLangButtons() {
+  for (const btn of document.querySelectorAll('#langSeg button, #wLangSeg button, #dispLangSeg button')) {
+    btn.classList.toggle('on', btn.dataset.lang === lang);
+  }
+}
+// Text that some widget renders on demand rather than holding in the DOM, so a
+// language change has to ask it to re-render. Kept out of applyLang() because
+// applyLang also runs at the top of the module, where `paused`, `setRate` and
+// friends are still in their temporal dead zone.
+function refreshLangText() {
+  refreshPlayButton();
+  // Re-render the rate readout in the new language, but do not clobber the
+  // "Precession" preset: setRate() resets yearRate to 0, which would silently
+  // switch that mode off just because the language changed.
+  if (real.yearRate > 0) setPrecessionRate(real.yearRate);
+  else setRate(real.rate);
 }
 applyLang();
 
@@ -3132,15 +3184,21 @@ function setLang(next, persist = true) {
   $('wCity').value = $('rCity').value;
   buildGotoList();
   if (typeof ddRefresh === 'function') for (const sel of document.querySelectorAll('select')) ddRefresh(sel);
-  $('langZh').classList.toggle('on', lang === 'zh');
-  $('langEn').classList.toggle('on', lang === 'en');
   hideStarInfo();
   updateLabelScale();
+  refreshLangText();                         // play/pause and rate readouts
   if (persist && lastUrl) writeUrlState();   // keep ?lang= in step with the toggle
   requestRender();
 }
-$('langZh').addEventListener('click', () => setLang('zh'));
-$('langEn').addEventListener('click', () => setLang('en'));
+// Three switches, one state: the HUD header, the welcome card (a first-time
+// visitor may need a language before they can read anything else) and the
+// panel's Display row. Buttons carry data-lang, so one listener drives them all.
+for (const seg of document.querySelectorAll('#langSeg, #wLangSeg, #dispLangSeg')) {
+  seg.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-lang]');
+    if (btn) setLang(btn.dataset.lang);
+  });
+}
 
 // Time rate: log slider, 1x .. 1e7x (about a year every 3 s)
 function fmtRate(r) {
