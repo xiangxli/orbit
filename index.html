@@ -98,12 +98,15 @@
   .row input.wide { width: 68px; }
   .row select.wide, #hud select.wide { width: auto; flex: 1; min-width: 0; }
   .row input[type="range"] { flex: 1; accent-color: var(--accent); height: 4px; }
-  .row button, #hud .btn {
+  /* Row buttons fill the row — except the buttons inside a segmented switch
+     (the language and AD/BC toggles), which must keep the segment's own size
+     and square corners instead of stretching and rounding. */
+  .row button:not(.seg button), #hud .btn {
     font-size: 11px; padding: 4px 6px; flex: 1; cursor: pointer;
     background: rgba(255, 255, 255, 0.05); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
     transition: background 0.15s, border-color 0.15s;
   }
-  .row button:hover, #hud .btn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
+  .row button:not(.seg button):hover, #hud .btn:hover { background: var(--accent-soft); border-color: var(--accent-line); }
   #hud .btn { width: 100%; margin-top: 6px; padding: 6px 0; font-size: 12px; }
   #hud .btn.active { background: var(--accent-soft); border-color: var(--accent); }
   #hud .stat { font-size: 11px; color: var(--muted); margin-top: 6px; }
@@ -213,7 +216,9 @@
   #welcome button:not(.seg button) { flex: 1; font-size: 13px; padding: 9px 0; border-radius: 10px; cursor: pointer; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.05); color: var(--text); }
   #welcome button.primary { background: var(--accent-soft); border-color: var(--accent); }
   #welcome button:not(.seg button):hover { background: var(--accent-soft); }
-  #welcome .seg button { font-size: 11px; padding: 4px 10px; border-radius: 0; flex: none; }
+  /* Same metrics as every other segment (4px 6px => 24px tall), so the language
+     switch and the AD/BC switch beside it line up exactly. */
+  #welcome .seg button { font-size: 11px; padding: 4px 6px; border-radius: 0; flex: none; }
   #welcome .hint { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
   #welcome .wTimer { position: absolute; left: 16px; right: 16px; bottom: 9px; height: 2px; border-radius: 1px; background: rgba(160, 190, 240, 0.12); overflow: hidden; transition: opacity 0.4s; }
   #welcome .wTimer i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; }
