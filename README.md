@@ -12,7 +12,7 @@ see that sky, with the Chinese constellations (三垣二十八宿). Open `index.
 - Observer view: stand on the Earth's surface at any latitude, watch the Big Dipper wheel around Polaris
 - Annual view: fixed local time — only the ~1°/day orbital drift remains
 - Big Dipper (7 real stars + Alcor), the Taoist nine-star Dipper (洞明/隐元), Polaris, starfield
-- i18n (device-language detection, English default), collapsible HUD
+- i18n (English / Simplified Chinese), collapsible HUD
 
 ### Real sky (date & place)
 
@@ -59,9 +59,15 @@ drives everything:
   that warms up toward the Sun at dusk.
 - **Names and lines**: bright stars carry their names (to V 1.5 at wide fields, V 3 when
   zoomed in); toggles for the meridian, the celestial equator of date and the ecliptic.
-- **Share**: in real-sky mode the address bar tracks time, place and view
-  (`?t=<JD>&lat&lon&az&alt&fov`); "Share link" copies it, and such a link opens straight
-  into that sky.
+- **Language**: English or Simplified Chinese, switched from the Display section. The
+  first visit follows the browser's language; an explicit choice is remembered and wins
+  from then on. A `?lang=zh` link opens in the language it was shared in without
+  overwriting the recipient's own choice. Star and planet names come from the catalog in
+  either language; the xingguan names stay Chinese in both, since the Chinese sky is the
+  subject.
+- **Share**: in real-sky mode the address bar tracks time, place, view and language
+  (`?t=<JD>&lat&lon&az&alt&fov[&lang=zh]`); "Share link" copies it, and such a link opens
+  straight into that sky, in the language it was shared in.
 - **Physics**: precession (the pole of date; Thuban was the pole star in 2800 BC, Polaris
   only recently), sidereal time, ΔT, the Earth's true distance from the Sun. No nutation,
   aberration or refraction (all < 1′ except refraction near the horizon).

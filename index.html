@@ -341,6 +341,12 @@
     </div>
     <details>
       <summary id="secDisplay">Display</summary>
+      <div class="row"><span id="lblLang">Language</span>
+        <div class="seg" id="langSeg">
+          <button id="langZh">中文</button>
+          <button id="langEn" class="on">English</button>
+        </div>
+      </div>
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
       <label class="realOnly"><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
       <label class="realOnly"><input type="checkbox" id="planets" checked /> <span id="lblPlanets">Planets (五星)</span></label>
@@ -1094,6 +1100,7 @@ const I18N = {
     stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
     pause2: 'Pause', resume: 'Resume',
     lblGoto: 'Go to',
+    lblLang: 'Language',
     gotoSun: 'Sun', gotoMoon: 'Moon', gotoPole: 'Celestial pole (of date)',
     grpXiu: '28 lunar mansions', grpCon: 'Asterisms', grpStars: 'Bright stars',
     lblView: 'View az / alt / fov:',
@@ -1182,6 +1189,7 @@ const I18N = {
     stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
     pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
     lblGoto: '\u524D\u5F80',
+    lblLang: '\u8BED\u8A00',
     gotoSun: '\u592A\u9633', gotoMoon: '\u6708\u4EAE', gotoPole: '\u5929\u6781\uFF08\u5F53\u4EE3\uFF09',
     grpXiu: '\u4E8C\u5341\u516B\u5BBF', grpCon: '\u661F\u5B98', grpStars: '\u4EAE\u661F',
     lblView: '\u89C6\u7EBF \u65B9\u4F4D / \u9AD8\u5EA6 / \u89C6\u573A\uFF1A',
@@ -1201,7 +1209,26 @@ function detectLang() {
   return raw.startsWith('zh') ? 'zh' : 'en';
 }
 
-let lang = detectLang();
+// Failure or absence must never decide the language, so anything that is not
+// exactly 'zh' resolves to English rather than to whatever happened to be there.
+function normLang(v) { return v === 'zh' ? 'zh' : 'en'; }
+
+// Language: English or Simplified Chinese only (zh-Hant and other Chinese
+// locales collapse to zh). navigator.language is only the first-visit default --
+// there is no inference about the user. An explicit choice wins over the browser
+// and is remembered; a ?lang= link is applied but does not overwrite the stored
+// choice, so opening a shared link never re-sets your language.
+function storedLang() {
+  try { const v = localStorage.getItem('orbit.lang'); return v === 'zh' || v === 'en' ? v : null; } catch { return null; }
+}
+function urlLang() {
+  try {
+    const v = new URLSearchParams(location.search).get('lang');
+    return v === 'zh' || v === 'en' ? v : null;
+  } catch { return null; }
+}
+
+let lang = normLang(storedLang() || detectLang());
 const t = (k) => I18N[lang][k] ?? I18N.en[k];
 
 function applyLang() {
@@ -1297,6 +1324,7 @@ function applyLang() {
   set('rM100y', d.stepM100y); set('rM1y', d.stepM1y); set('rM1m', d.stepM1m);
   set('rP1m', d.stepP1m); set('rP1y', d.stepP1y); set('rP100y', d.stepP100y);
   set('lblGoto', d.lblGoto);
+  set('lblLang', d.lblLang);
   set('lblView', d.lblView);
   set('lblPlanets', d.lblPlanets);
   set('lblOccult', d.lblOccult);
@@ -1928,12 +1956,27 @@ const planetHaloPts = makePlanetLayer(planetHaloMat);
 const planetGeo = planetPts.geometry;
 const planetHaloGeo = planetHaloPts.geometry;
 const planetLabels = [];
-for (const n of PLANET_LIST) {
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(planetName(n), '#eef4ff'), transparent: true, depthWrite: false, opacity: 0.95 }));
-  sp.userData.major = true;
-  planetLabels.push(sp);
-  skyGroup.add(sp);
+// Sprite labels carry their text in a canvas texture, so a language change has
+// to redraw them: dispose the old texture and build a fresh sprite. Order
+// follows PLANET_LIST (updatePlanets indexes planetLabels[k] the same way).
+function disposeLabel(sp) {
+  if (sp.parent) sp.parent.remove(sp);
+  if (sp.material.map) sp.material.map.dispose();
+  sp.material.dispose();
 }
+function buildPlanetLabels() {
+  for (const sp of planetLabels) disposeLabel(sp);
+  planetLabels.length = 0;
+  for (const n of PLANET_LIST) {
+    const text = planetName(n);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(text, '#eef4ff'), transparent: true, depthWrite: false, opacity: 0.95 }));
+    sp.userData.major = true;
+    sp.userData.text = text;   // kept for the automated language checks
+    planetLabels.push(sp);
+    skyGroup.add(sp);
+  }
+}
+buildPlanetLabels();
 const planetGroup = { visible: true };
 function setPlanetsVisible(on) {
   planetGroup.visible = on;
@@ -2079,24 +2122,42 @@ skyGroup.add(selMarker);
 
 // Bright star names: labels for named stars to V 3.0, shown by tiers of
 // magnitude depending on the field of view (see updateLabelScale). The text
-// sits to the lower right of the star (sprite anchor offset).
+// sits to the lower right of the star (sprite anchor offset). The name is baked
+// into a canvas texture, so a language change rebuilds the whole set; the
+// zh -> en fallback keeps the ~2,100 stars that only have a Chinese name.
 const starLabels = [];
-for (let i = 0; i < N_STARS; i++) {
-  const s = STARS.stars[i], hip = s[0];
-  if (s[3] > 3.0 || !hip) continue;
-  const name = lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip]);
-  if (!name) continue;
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(name, '#b9cfee'), transparent: true, depthWrite: false, opacity: 0.85 }));
-  sp.center.set(-0.05, 1.15);
-  sp.userData.mag = s[3];
-  starLabels.push({ sp, i });
-  skyGroup.add(sp);
+let starEpochJd = null;   // set once buildStarPositions has run for an epoch
+function buildStarLabels() {
+  for (const { sp } of starLabels) disposeLabel(sp);
+  starLabels.length = 0;
+  for (let i = 0; i < N_STARS; i++) {
+    const s = STARS.stars[i], hip = s[0];
+    if (s[3] > 3.0 || !hip) continue;
+    const name = lang === 'zh' ? (STARS.zh[hip] || STARS.en[hip]) : (STARS.en[hip] || STARS.zh[hip]);
+    if (!name) continue;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(name, '#b9cfee'), transparent: true, depthWrite: false, opacity: 0.85 }));
+    sp.center.set(-0.05, 1.15);
+    sp.userData.mag = s[3];
+    sp.userData.text = name;   // kept for the automated language checks
+    starLabels.push({ sp, i });
+    skyGroup.add(sp);
+  }
+  // Positions are only known once buildStarPositions has run; before that the
+  // labels sit at the origin inside a hidden group, which is harmless.
+  if (starEpochJd !== null) {
+    placeStarLabels();
+    labelFov = -1;   // re-apply visibility tiers and scale for the new sprites
+  }
 }
+// Positions come from the star buffer, so labels never need a scene rebuild.
+function placeStarLabels() {
+  for (const { sp, i } of starLabels) sp.position.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).multiplyScalar(0.985);
+}
+buildStarLabels();
 let starNamesOn = true;
 
 // Star positions for an epoch: J2000 + proper motion. Rebuilt when the
 // simulated date drifts more than 5 years from the last build.
-let starEpochJd = null;
 function buildStarPositions(jdTT) {
   const years = (jdTT - Astro.J2000) / 365.25;
   for (let i = 0; i < N_STARS; i++) {
@@ -2121,8 +2182,8 @@ function buildStarPositions(jdTT) {
     haloPos[k * 3 + 2] = starPos[i * 3 + 2];
   });
   haloGeo.attributes.position.needsUpdate = true;
-  for (const { sp, i } of starLabels) sp.position.set(starPos[i * 3], starPos[i * 3 + 1], starPos[i * 3 + 2]).multiplyScalar(0.985);
   starEpochJd = jdTT;
+  placeStarLabels();
 }
 
 // ---- Horizon: ground, skyline, horizon glow, cardinal points ----
@@ -2319,9 +2380,20 @@ const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({
 moonGlow.renderOrder = 3;
 moonGlow.visible = false;
 moonGroup.add(moonGlow);
-const moonLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(lang === 'zh' ? '月' : 'Moon', '#eef4ff'), transparent: true, depthWrite: false, depthTest: false, opacity: 0.95 }));
-moonLabel.visible = false;
-moonGroup.add(moonLabel);
+// The Moon's own label ("月" / "Moon") is a canvas texture too, so it needs the
+// same rebuild-on-language-change treatment as the star and planet labels.
+let moonLabel = null;
+let moonLabelStr = '';
+const moonLabelText = () => moonLabelStr;
+function buildMoonLabel() {
+  if (moonLabel) disposeLabel(moonLabel);
+  moonLabelStr = lang === 'zh' ? '月' : 'Moon';
+  moonLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: makeSmallLabel(moonLabelStr, '#eef4ff'), transparent: true, depthWrite: false, depthTest: false, opacity: 0.95 }));
+  moonLabel.visible = false;
+  moonGroup.add(moonLabel);
+  labelFov = -1;   // rescale for the new sprite
+}
+buildMoonLabel();
 // Observer marker on the globe (seen in the free view of real-sky mode)
 const observerMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.012, 12, 12),
@@ -3035,6 +3107,38 @@ $('rLat').value = real.lat;
 $('rLon').value = real.lon;
 jdToFields(real.jd);
 
+// ---- Language switching ----
+// One entry point for every language change, whether it comes from the toggle,
+// a ?lang= link or start-up: set `lang`, re-apply the localized DOM text, then
+// rebuild the things that baked the language into a canvas texture at load —
+// the star, planet and Moon label sprites, plus the option lists (city names,
+// Go to) and the dropdown buttons that mirror them. `persist` is false only for
+// a URL-supplied language, which must not overwrite the stored choice.
+function setLang(next, persist = true) {
+  next = normLang(next);
+  lang = next;
+  if (persist) { try { localStorage.setItem('orbit.lang', lang); } catch {} }
+  applyLang();
+  buildStarLabels();
+  buildPlanetLabels();
+  buildMoonLabel();
+  setPlanetsVisible($('planets').checked);
+  buildCityList();
+  const match = CITIES.find((c) => Math.abs(c[3] - real.lat) < 0.01 && Math.abs(c[4] - real.lon) < 0.01);
+  $('rCity').value = match ? match[0] : '';
+  $('wCity').value = $('rCity').value;
+  buildGotoList();
+  if (typeof ddRefresh === 'function') for (const sel of document.querySelectorAll('select')) ddRefresh(sel);
+  $('langZh').classList.toggle('on', lang === 'zh');
+  $('langEn').classList.toggle('on', lang === 'en');
+  hideStarInfo();
+  updateLabelScale();
+  if (persist && lastUrl) writeUrlState();   // keep ?lang= in step with the toggle
+  requestRender();
+}
+$('langZh').addEventListener('click', () => setLang('zh'));
+$('langEn').addEventListener('click', () => setLang('en'));
+
 // Time rate: log slider, 1x .. 1e7x (about a year every 3 s)
 function fmtRate(r) {
   const x = r < 1000 ? r.toFixed(0) : r.toExponential(1);
@@ -3250,6 +3354,14 @@ function ddOpen(sel, btn) {
   const cur = ddMenu.querySelector('.dd-item.sel');
   if (cur) cur.scrollIntoView({ block: 'nearest' });
 }
+// Re-read a select's current option text onto its dropdown button. Needed
+// after a language change rewrites option labels (city names) — the button
+// caches nothing itself, but nothing fires a change event either.
+function ddRefresh(sel) {
+  const o = sel.options[sel.selectedIndex];
+  const btn = sel.nextElementSibling;
+  if (btn && btn.classList.contains('dd-btn')) btn.firstChild.textContent = o ? o.textContent : '';
+}
 function makeDropdown(sel) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -3258,10 +3370,7 @@ function makeDropdown(sel) {
   btn.appendChild(span);
   sel.insertAdjacentElement('afterend', btn);
   sel.classList.add('dd-native');
-  const refresh = () => {
-    const o = sel.options[sel.selectedIndex];
-    span.textContent = o ? o.textContent : '';
-  };
+  const refresh = () => ddRefresh(sel);
   refresh();
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3282,7 +3391,7 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') ddClose(); });
 addEventListener('resize', ddClose);
 $('hudBody').addEventListener('scroll', ddClose);
 
-// ---- URL state: ?t=<JD>&lat&lon&az&alt&fov[&basis][&cal] ----
+// ---- URL state: ?t=<JD>&lat&lon&az&alt&fov[&basis][&cal][&lang] ----
 // Written (throttled by the readout tick) while in real-sky mode; a link
 // with these parameters opens straight into that sky.
 let lastUrl = '';
@@ -3298,6 +3407,11 @@ function urlStateString() {
   }
   if (real.basis !== 'lmt') p.set('basis', real.basis);
   if (real.cal !== 'auto') p.set('cal', real.cal);
+  // Absolute, like the view state: the link states what the sky is, not what
+  // differs from the recipient's browser. Comparing against the browser locale
+  // instead would silently strip ?lang=en from a link handed to anyone whose
+  // browser happens to be English.
+  if (lang !== 'en') p.set('lang', lang);
   return '?' + p.toString();
 }
 function writeUrlState() {
@@ -3329,6 +3443,10 @@ function applyUrlState() {
   if (p.has('az')) real.az = Astro.norm360(Number(p.get('az')) || 0);
   if (p.has('alt')) real.alt = THREE.MathUtils.clamp(Number(p.get('alt')) || 0, -25, 89.9);
   if (p.has('fov')) obsFov = THREE.MathUtils.clamp(Number(p.get('fov')) || REAL_FOV, 8, OBSERVER_FOV);
+  // A shared link opens in the language it was shared in, but that is a
+  // property of the link, not a preference: persist:false keeps it out of
+  // localStorage, so it never re-sets the recipient's own choice.
+  if (urlLang()) setLang(urlLang(), false);
   requestRender();
   return true;
 }
@@ -3350,6 +3468,15 @@ $('tbShare').addEventListener('click', async () => {
 window.__orbit = {
   real, earth, earthPivot, observer, camera, Astro, THREE, applyRealState, setRealMode, setObserverMode,
   gotoTarget, pickStarAt, sunDir: _sunDir, poleDirScene, toScene, milkyWay,
+  setLang, getLang: () => lang,
+  langProbe: () => ({
+    lang,
+    moon: moonLabelText(),
+    planets: planetLabels.map((sp) => sp.userData.text),
+    starSample: starLabels.slice(0, 5).map(({ sp }) => sp.userData.text),
+    cityOptions: [...$('rCity').options].slice(0, 3).map((o) => o.textContent),
+    ddCity: $('rCity').nextElementSibling.firstChild.textContent,
+  }),
   // synchronous frame for automated checks (background tabs throttle rAF)
   renderNow() {
     if (real.on) applyRealState();
@@ -3529,6 +3656,11 @@ refreshDayOfYear();
 // BEFORE real mode starts, or writeUrlState would have already put a ?t= of
 // the current clock into the address bar.
 applyUrlState();
+// Language is applied last so nothing else can override it. It is already set
+// for startup (stored choice, else the browser default); this syncs the toggle
+// and the ?lang= state, and matters most when the URL had no ?t=, in which
+// case the block above never ran at all.
+setLang(lang, false);
 setRealMode(true);
 </script>
 
