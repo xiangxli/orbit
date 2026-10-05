@@ -19,7 +19,7 @@
 | 方位 | 观测视角默认面南（方位 180°、仰角 40°、视场 70°），东在左、西在右，即"左青龙右白虎"。已用太阳实测：09:00 在屏幕左、15:00 在右 |
 | 架构 | `astro.js` 纯函数做全部天文计算，输出 J2000 赤道系单位向量；`index.html` 只负责把向量映射进场景和 UI |
 | 部署 | 仍支持直接打开 index.html。本地文件一律用经典 `<script src>`（file:// 下 Chrome 拦 ES module 和 fetch，不拦经典脚本）；银河贴图内联为 base64（file:// 下 `<img>` 会污染 WebGL 纹理）；脚本 `?v=` 防缓存，改了就升号 |
-| 测试 | `node --test test/` 零依赖，25 项：Meeus 书中算例 + 真实天象（2024 日食、2020 木土大合、2022/2025 月掩火星、尧典中星） |
+| 测试 | `npm test`（即 `node --test test/*.test.js`）零依赖，25 项：Meeus 书中算例 + 真实天象（2024 日食、2020 木土大合、2022/2025 月掩火星、尧典中星） |
 
 ## 现状（按功能）
 
@@ -59,7 +59,7 @@
 | `index.html` | 整个应用：three.js 场景、真实星空模式、面板与自绘控件 |
 | `astro.js` | 天文计算，经典脚本 + CommonJS 导出 |
 | `stars.js` / `constellations.js` / `milkyway.js` | 生成数据，`python3 tools/build_data.py /tmp/orbit-data` 重生成（源文件下载地址见脚本头部） |
-| `test/astro.test.js` / `test/sky.test.js` | `node --test test/` |
+| `test/astro.test.js` / `test/sky.test.js` | `npm test` |
 | `.claude/launch.json` | 本地预览用（`python3 -m http.server 8791`），未入库 |
 
 调试钩子：`window.__orbit`（real 状态、applyRealState、gotoTarget、pickStarAt、renderNow 等）。

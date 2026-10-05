@@ -80,7 +80,7 @@ The demo's speed sliders are disabled in real-sky mode (they would break the cal
 | `index.html` | The whole app (Three.js scene, HUD, real-sky mode) |
 | `astro.js` | Pure astronomy: calendars/JD, ΔT, sidereal time, obliquity, precession, Sun, Moon, coordinate transforms. Classic script (browser) + CommonJS (node) |
 | `stars.js`, `constellations.js`, `milkyway.js` | Generated data (see `tools/build_data.py`); the Milky Way is a base64 JPEG so WebGL can use it from `file://` |
-| `test/` | `node --test test/` — Meeus worked examples and historical sanity checks |
+| `test/` | `npm test` (or `node --test test/*.test.js`) — Meeus worked examples and historical sanity checks |
 | `PLAN.md` | Design decisions and frame conventions for the real-sky mode. Read it before touching the coordinate code |
 
 `astro.js` and the data files are classic scripts, not ES modules, so the page still works

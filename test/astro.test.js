@@ -1,5 +1,5 @@
 // Meeus, "Astronomical Algorithms" (2nd ed.) worked examples, plus a few
-// physical sanity checks. Run: node --test test/
+// physical sanity checks. Run: npm test
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const A = require('../astro.js');
