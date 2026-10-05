@@ -59,11 +59,11 @@ drives everything:
   that warms up toward the Sun at dusk.
 - **Names and lines**: bright stars carry their names (to V 1.5 at wide fields, V 3 when
   zoomed in); toggles for the meridian, the celestial equator of date and the ecliptic.
-- **Language**: English or Simplified Chinese, switchable in three places that always
-  agree — the welcome card (a first-time visitor may need a language before they can read
-  anything else; picking one there also cancels the card's 10 s countdown), the panel
-  header next to the Real sky / Demo switch, and the Display section. The first visit
-  follows the browser's language; an explicit choice is remembered and wins from then on.
+- **Language**: English or Simplified Chinese, switched with the 中文 / EN control in the
+  panel header — always visible, in both modes — or on the welcome card, which a
+  first-time visitor may need before they can read anything else (picking one there also
+  cancels the card's 10 s countdown). The two always agree. The first visit follows the
+  browser's language; an explicit choice is remembered and wins from then on.
   A `?lang=zh` link opens in the language it was shared in without overwriting the
   recipient's own choice. Star and planet names come from the catalog in either language;
   the xingguan names stay Chinese in both, since the Chinese sky is the subject.

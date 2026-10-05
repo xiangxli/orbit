@@ -42,28 +42,28 @@
   #hudHeader { display: flex; align-items: center; gap: 6px; }
   #hud h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: var(--accent); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seg { display: flex; border: 1px solid var(--accent-line); border-radius: 8px; overflow: hidden; flex: none; }
-  .seg button { font-size: 11px; padding: 4px 9px; background: transparent; color: var(--muted); border: 0; cursor: pointer; white-space: nowrap; }
+  /* 4px 6px is the shared metric for every segmented switch in the app, so they
+     all come out exactly 24px tall; the header's mode switch opts into more. */
+  .seg button { font-size: 11px; padding: 4px 6px; background: transparent; color: var(--muted); border: 0; cursor: pointer; white-space: nowrap; }
   .seg button.on { background: var(--accent-soft); color: var(--text); }
   /* The three language switches live in different containers (header, welcome
      card, panel row), whose own button rules would otherwise flatten the
      selection into an indistinct tint. Give the chosen language a fill and an
      inner divider edge so it is unmistakable on every background. */
-  #langSeg button.on, #wLangSeg button.on, #dispLangSeg button.on {
+  #langSeg button.on, #wLangSeg button.on {
     background: rgba(143, 200, 255, 0.28);
     color: #f2f7ff;
     font-weight: 600;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
-  #langSeg button + button, #wLangSeg button + button, #dispLangSeg button + button {
+  #langSeg button + button, #wLangSeg button + button {
     border-left: 1px solid var(--accent-line);
   }
   /* On the card the same fill would compete with the Start button, so the
      selection there is a touch lighter — the divider carries the structure. */
   #wLangSeg button.on { background: rgba(143, 200, 255, 0.24); font-weight: 500; box-shadow: none; }
-  /* The language switch is always-visible chrome (header, and the welcome
-     card), so it needs to be a little tighter to fit next to the mode switch —
-     and the mode switch after it, which otherwise squeezes the title. */
-  #langSeg button { padding: 4px 6px; }
+  /* The switch that follows the language one in the header is the mode switch;
+     it can afford slightly more padding, and the title needs the room. */
   #langSeg + .seg button { padding: 4px 8px; }
   #hudToggle {
     background: transparent; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 8px;
@@ -383,17 +383,10 @@
         <div class="stat"><span id="lblView">View az / alt / fov:</span> <span id="viewVal">-</span></div>
       </details>
     </div>
-    <!-- Open by default: it holds the language switch, which is a setting a
-         visitor should be able to find without hunting through collapsed
-         sections (the panel starts with only Time expanded). -->
-    <details open>
+    <!-- Closed by default, like the other sections: the language switch that
+         briefly justified opening this lives in the header and the card now. -->
+    <details>
       <summary id="secDisplay">Display</summary>
-      <div class="row"><span id="lblLang">Language</span>
-        <div class="seg" id="dispLangSeg">
-          <button data-lang="zh">中文</button>
-          <button data-lang="en" class="on">EN</button>
-        </div>
-      </div>
       <label class="realOnly"><input type="checkbox" id="conLines" checked /> <span id="lblConLines">Xingguan lines</span></label>
       <label class="realOnly"><input type="checkbox" id="conNames" checked /> <span id="lblConNames">Xingguan names</span></label>
       <label class="realOnly"><input type="checkbox" id="planets" checked /> <span id="lblPlanets">Planets (五星)</span></label>
@@ -1148,7 +1141,6 @@ const I18N = {
     stepM100y: '\u2212100 y', stepM1y: '\u22121 y', stepM1m: '\u22121 mo', stepP1m: '+1 mo', stepP1y: '+1 y', stepP100y: '+100 y',
     pause2: 'Pause', resume: 'Resume',
     lblGoto: 'Go to',
-    lblLang: 'Language',
     gotoSun: 'Sun', gotoMoon: 'Moon', gotoPole: 'Celestial pole (of date)',
     grpXiu: '28 lunar mansions', grpCon: 'Asterisms', grpStars: 'Bright stars',
     lblView: 'View az / alt / fov:',
@@ -1238,7 +1230,6 @@ const I18N = {
     stepM100y: '\u2212100\u5E74', stepM1y: '\u22121\u5E74', stepM1m: '\u22121\u6708', stepP1m: '+1\u6708', stepP1y: '+1\u5E74', stepP100y: '+100\u5E74',
     pause2: '\u6682\u505C', resume: '\u7EE7\u7EED',
     lblGoto: '\u524D\u5F80',
-    lblLang: '\u8BED\u8A00',
     gotoSun: '\u592A\u9633', gotoMoon: '\u6708\u4EAE', gotoPole: '\u5929\u6781\uFF08\u5F53\u4EE3\uFF09',
     grpXiu: '\u4E8C\u5341\u516B\u5BBF', grpCon: '\u661F\u5B98', grpStars: '\u4EAE\u661F',
     lblView: '\u89C6\u7EBF \u65B9\u4F4D / \u9AD8\u5EA6 / \u89C6\u573A\uFF1A',
@@ -1374,7 +1365,6 @@ function applyLang() {
   set('rM100y', d.stepM100y); set('rM1y', d.stepM1y); set('rM1m', d.stepM1m);
   set('rP1m', d.stepP1m); set('rP1y', d.stepP1y); set('rP100y', d.stepP100y);
   set('lblGoto', d.lblGoto);
-  set('lblLang', d.lblLang);
   set('lblView', d.lblView);
   set('lblPlanets', d.lblPlanets);
   set('lblOccult', d.lblOccult);
@@ -1391,9 +1381,9 @@ function applyLang() {
 // each button a full accessible name built from the current UI language.
 function syncLangButtons() {
   const d = I18N[lang];
-  for (const btn of document.querySelectorAll('#langSeg button, #wLangSeg button, #dispLangSeg button')) {
+  for (const btn of document.querySelectorAll('#langSeg button, #wLangSeg button')) {
     btn.classList.toggle('on', btn.dataset.lang === lang);
-    btn.setAttribute('aria-label', `${d.lblLang}: ${btn.dataset.lang === 'zh' ? '中文（简体）' : 'English'}`);
+    btn.setAttribute('aria-label', `${d.wLblLang}: ${btn.dataset.lang === 'zh' ? '中文（简体）' : 'English'}`);
   }
 }
 // Text that some widget renders on demand rather than holding in the DOM, so a
@@ -3209,10 +3199,10 @@ function setLang(next, persist = true) {
   if (persist && lastUrl) writeUrlState();   // keep ?lang= in step with the toggle
   requestRender();
 }
-// Three switches, one state: the HUD header, the welcome card (a first-time
-// visitor may need a language before they can read anything else) and the
-// panel's Display row. Buttons carry data-lang, so one listener drives them all.
-for (const seg of document.querySelectorAll('#langSeg, #wLangSeg, #dispLangSeg')) {
+// Two switches, one state: the HUD header (always visible) and the welcome card
+// (a first-time visitor may need a language before they can read anything else).
+// Buttons carry data-lang, so one listener drives them all.
+for (const seg of document.querySelectorAll('#langSeg, #wLangSeg')) {
   seg.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-lang]');
     if (btn) setLang(btn.dataset.lang);
